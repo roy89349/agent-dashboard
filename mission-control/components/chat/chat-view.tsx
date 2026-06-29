@@ -5,7 +5,7 @@ import { Plus, Send, MessagesSquare, Bot, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Msg = { role: "user" | "assistant"; content: string; pending?: boolean };
-type Conv = { id: string; title: string | null; updated_at: string };
+type Conv = { id: string; title: string | null; updated_at: string; kind?: string; issue?: number | null };
 
 export function ChatView() {
   const [convs, setConvs] = useState<Conv[]>([]);
@@ -30,6 +30,10 @@ export function ChatView() {
 
   useEffect(() => {
     loadConvs();
+    // auto-open a conversation passed as ?c=<id> (e.g. from the "Discuss" button)
+    const c = new URLSearchParams(window.location.search).get("c");
+    if (c) selectConv(c);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadConvs]);
 
   useEffect(() => {
@@ -138,6 +142,11 @@ export function ChatView() {
               >
                 <MessagesSquare className="size-3.5 shrink-0 text-white/30" />
                 <span className="truncate">{c.title ?? "New conversation"}</span>
+                {c.kind === "task" && c.issue != null && (
+                  <span className="ml-auto shrink-0 rounded bg-indigo-500/20 px-1 text-[10px] text-indigo-300">
+                    #{c.issue}
+                  </span>
+                )}
               </button>
             ))
           )}

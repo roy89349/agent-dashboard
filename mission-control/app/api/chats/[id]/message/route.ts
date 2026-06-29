@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { verifySession } from "@/lib/session";
 import { getConversation, getMessages, addMessage, touchConversation } from "@/lib/db";
 import { runClaude, vaultDir, fleetDir } from "@/lib/agent";
-import { readStatus } from "@/lib/fleet";
+import { readStatus, readIssueState, agentLogTail } from "@/lib/fleet";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 800; // allow long agent runs
@@ -28,6 +28,32 @@ function orchestratorSystem(): string {
   );
 }
 
+function taskSystem(issue: number): string {
+  const project = process.env.PROJECT_NAME?.trim() || "this project";
+  const st = readIssueState(issue);
+  const log = agentLogTail(issue, 1800);
+  const f = (k: string) => (st && st[k] != null ? String(st[k]) : "");
+  let info = `build task #${issue}`;
+  if (st) {
+    const bits = [
+      f("title") && `title="${f("title")}"`,
+      f("state") && `state=${f("state")}`,
+      f("model") && `model=${f("model")}`,
+      f("review_verdict") && `review=${f("review_verdict")}`,
+      f("branch") && `branch=${f("branch")}`,
+      f("pr_url") && `PR=${f("pr_url")}`,
+      f("error") && `error=${f("error")}`,
+    ].filter(Boolean);
+    if (bits.length) info += ` (${bits.join(", ")})`;
+  }
+  return (
+    `You are the orchestrator assistant discussing ${info} in ${project}. ` +
+    "Help the user understand what the agent did, review the change, and plan next steps or a follow-up task. " +
+    "You can Read/Grep/Glob the repository (attached via --add-dir). Answer concisely and concretely." +
+    (log ? `\n\nRecent agent log (tail, redacted):\n${log}` : "")
+  );
+}
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const c = await cookies();
   if (!(await verifySession(c.get("mc_session")?.value, process.env.MC_SESSION_SECRET!)))
@@ -47,6 +73,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!conv.title) touchConversation(id, { title: content.slice(0, 80) });
 
   const sessionId = conv.session_id ?? undefined;
+  const isTask = conv.kind === "task" && conv.issue != null;
+  const sys = isTask ? taskSystem(conv.issue!) : orchestratorSystem();
+  const repoDir = process.env.REPO_DIR?.trim();
+  const dirs = [vaultDir(), isTask && repoDir ? repoDir : ""].filter(Boolean) as string[];
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -70,9 +100,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             resumeId: hasAssistant ? sessionId : undefined,
             model: conv.model ?? "sonnet",
             effort: conv.effort ?? "medium",
-            addDirs: vaultDir() ? [vaultDir()] : [],
+            addDirs: dirs,
             allowedTools: "Read,Grep,Glob",
-            appendSystemPrompt: orchestratorSystem(),
+            appendSystemPrompt: sys,
             maxTurns: 30,
             signal: req.signal,
           },

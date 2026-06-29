@@ -354,6 +354,37 @@ function redact(s: string): string {
   return r;
 }
 
+// Per-issue telemetry state (state/issue-<n>.json) — for seeding task conversations.
+export function readIssueState(issue: number): Record<string, unknown> | null {
+  try {
+    const n = Math.trunc(issue);
+    return JSON.parse(fs.readFileSync(path.join(fleetDir(), "state", `issue-${n}.json`), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// Last <maxBytes> of an issue's agent log, secret-redacted (for task-chat context).
+export function agentLogTail(issue: number, maxBytes = 2000): string {
+  try {
+    const n = Math.trunc(issue);
+    const file = path.resolve(LOGS(), `issue-${n}.agent.log`);
+    if (!file.startsWith(path.resolve(LOGS()) + path.sep)) return "";
+    const size = fs.statSync(file).size;
+    const from = Math.max(0, size - maxBytes);
+    const fd = fs.openSync(file, "r");
+    try {
+      const buf = Buffer.alloc(size - from);
+      const read = fs.readSync(fd, buf, 0, size - from, from);
+      return redact(buf.subarray(0, read).toString("utf8"));
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return "";
+  }
+}
+
 export interface LogChunk {
   data: string;
   next: number;

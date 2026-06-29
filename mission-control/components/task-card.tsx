@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink, GitMerge, Bot, AlertTriangle, ArrowUp, RotateCcw, X } from "lucide-react";
+import { ExternalLink, GitMerge, Bot, AlertTriangle, ArrowUp, RotateCcw, X, MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BoardCard, FleetState, ReviewVerdict } from "@/lib/types";
 
@@ -42,6 +42,23 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
       onMerged();
     } else {
       toast.error(j.error ?? "Failed");
+    }
+  }
+
+  // Open a conversation about this task (seeded with its context), then jump to Conversations.
+  async function discuss() {
+    setActing(true);
+    const res = await fetch("/api/chats", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "task", issue: card.issue, title: `#${card.issue} ${card.title}`.slice(0, 80) }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok && j.id) {
+      window.location.assign(`/chats?c=${j.id}`);
+    } else {
+      setActing(false);
+      toast.error(j.error ?? "Could not start chat");
     }
   }
 
@@ -118,6 +135,14 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
           <AlertTriangle className="mt-0.5 size-3 shrink-0" /> {card.error.slice(0, 240)}
         </p>
       )}
+
+      <button
+        onClick={discuss}
+        disabled={acting}
+        className="mt-2 inline-flex items-center gap-1 text-xs text-[#1B3A6B] hover:underline disabled:opacity-50"
+      >
+        <MessagesSquare className="size-3.5" /> Discuss
+      </button>
 
       {card.column === "backlog" && (
         <div className="mt-3 flex items-center gap-2">
