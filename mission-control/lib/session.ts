@@ -29,6 +29,7 @@ function unb64url(s: string): string {
 }
 
 export async function mintSession(secret: string): Promise<string> {
+  if (!secret) throw new Error("MC_SESSION_SECRET is not set");
   const payload = JSON.stringify({ iat: Date.now() });
   const p = b64url(payload);
   const sig = await hmacHex(p, secret);
@@ -39,7 +40,8 @@ export async function verifySession(
   cookie: string | undefined,
   secret: string,
 ): Promise<boolean> {
-  if (!cookie || !cookie.includes(".")) return false;
+  // fail closed: no secret configured ⇒ no valid sessions (never authenticate with an empty key)
+  if (!secret || !cookie || !cookie.includes(".")) return false;
   const [p, sig] = cookie.split(".");
   const expected = await hmacHex(p, secret);
   if (sig !== expected) return false;

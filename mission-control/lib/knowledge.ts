@@ -165,8 +165,10 @@ export function searchNotes(query: unknown): SearchHit[] {
     { encoding: "utf8", timeout: 8000, maxBuffer: 4_000_000 },
   );
   const hits: SearchHit[] = [];
-  if (rg.status === 0 && rg.stdout) {
-    for (const line of rg.stdout.split("\n")) {
+  // rg exit 0 = matches, exit 1 = NO matches (both are "ran fine"). Only fall back to the
+  // JS scan when ripgrep genuinely couldn't run (binary missing / timed out / spawn error).
+  if (!rg.error && (rg.status === 0 || rg.status === 1)) {
+    for (const line of (rg.stdout || "").split("\n")) {
       if (!line || hits.length >= 200) break;
       // format: <abs>:<lineno>:<text>
       const m = line.match(/^(.*?):(\d+):(.*)$/);

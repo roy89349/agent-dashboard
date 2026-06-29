@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifySession } from "@/lib/session";
 import { getConversation, getMessages, addMessage, touchConversation } from "@/lib/db";
-import { runClaude, vaultDir, fleetDir } from "@/lib/agent";
+import { runClaude, vaultDir, chatCwd } from "@/lib/agent";
 import { readStatus, readIssueState, agentLogTail } from "@/lib/fleet";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +68,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!content) return NextResponse.json({ error: "empty message" }, { status: 400 });
 
   const prior = getMessages(id);
-  const hasAssistant = prior.some((m) => m.role === "assistant");
+  // Resume whenever the conversation already has ANY prior turn — the very first message
+  // (prior empty) starts a new session via --session-id; every later message resumes it.
+  // (Keying on assistant-presence could brick a conversation after a failed first turn,
+  // because claude may already have created the session record.)
+  const resume = prior.length > 0;
   addMessage({ conversation_id: id, role: "user", content });
   if (!conv.title) touchConversation(id, { title: content.slice(0, 80) });
 
@@ -95,9 +99,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const res = await runClaude(
           {
             prompt: content,
-            cwd: conv.cwd ?? fleetDir(),
-            sessionId: hasAssistant ? undefined : sessionId,
-            resumeId: hasAssistant ? sessionId : undefined,
+            cwd: conv.cwd ?? chatCwd(),
+            sessionId: resume ? undefined : sessionId,
+            resumeId: resume ? sessionId : undefined,
             model: conv.model ?? "sonnet",
             effort: conv.effort ?? "medium",
             addDirs: dirs,

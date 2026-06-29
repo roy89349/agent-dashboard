@@ -2,6 +2,7 @@ import "server-only";
 import { spawn } from "node:child_process";
 import readline from "node:readline";
 import path from "node:path";
+import fs from "node:fs";
 
 /**
  * Runs the Claude Code CLI headless and streams the assistant tokens via a callback.
@@ -16,6 +17,16 @@ export function fleetDir(): string {
 // Optional knowledge-base directory; empty = no vault configured.
 export function vaultDir(): string {
   return process.env.VAULT_DIR?.trim() || "";
+}
+
+// Stable, secret-free working dir for chat agents. NOT the fleet root (which holds
+// config.local.env / .env.local) — the repo + vault are granted via --add-dir instead.
+export function chatCwd(): string {
+  const dir = path.join(fleetDir(), "data", "chat-cwd");
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch {}
+  return dir;
 }
 
 export interface RunOpts {

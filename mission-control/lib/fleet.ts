@@ -345,6 +345,8 @@ function redact(s: string): string {
   r = r.replace(/sk-ant-[A-Za-z0-9_\-]{8,}/g, "«REDACTED-anthropic»");
   r = r.replace(/github_pat_[A-Za-z0-9_]{20,}/g, "«REDACTED-github-pat»");
   r = r.replace(/\bgh[opsu]_[A-Za-z0-9]{8,}\b/g, "«REDACTED-github»");
+  r = r.replace(/\b[a-z][a-z0-9+.\-]*:\/\/[^\s/:@]+:[^\s/@]+@/gi, "«REDACTED-url-credential»@"); // user:pass@host
+  r = r.replace(/\bAKIA[0-9A-Z]{16}\b/g, "«REDACTED-aws»");
   r = r.replace(/eyJ[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{4,}/g, "«REDACTED-jwt»");
   r = r.replace(
     /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
@@ -376,7 +378,12 @@ export function agentLogTail(issue: number, maxBytes = 2000): string {
     try {
       const buf = Buffer.alloc(size - from);
       const read = fs.readSync(fd, buf, 0, size - from, from);
-      return redact(buf.subarray(0, read).toString("utf8"));
+      let text = buf.subarray(0, read).toString("utf8");
+      if (from > 0) {
+        const nl = text.indexOf("\n"); // drop the partial first line so redaction sees whole lines
+        if (nl >= 0) text = text.slice(nl + 1);
+      }
+      return redact(text);
     } finally {
       fs.closeSync(fd);
     }

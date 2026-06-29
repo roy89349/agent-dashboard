@@ -14,6 +14,8 @@ export function ChatView() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const activeIdRef = useRef<string | null>(null); // current thread, for stream-vs-thread guard
+  const abortRef = useRef<AbortController | null>(null); // in-flight stream, abortable on switch/unmount
 
   const loadConvs = useCallback(async () => {
     const r = await fetch("/api/chats", { cache: "no-store" });
@@ -40,18 +42,25 @@ export function ChatView() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
+  // abort any in-flight stream when the component unmounts (kills the server-side claude run)
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   async function selectConv(id: string) {
+    abortRef.current?.abort(); // stop any running stream before switching threads
+    activeIdRef.current = id;
     setActiveId(id);
     await loadMessages(id);
   }
 
   async function newConv(): Promise<string | null> {
+    abortRef.current?.abort();
     const r = await fetch("/api/chats", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
     if (!r.ok) {
       toast.error("Could not create conversation");
       return null;
     }
     const { id } = await r.json();
+    activeIdRef.current = id;
     setActiveId(id);
     setMessages([]);
     loadConvs();
@@ -66,14 +75,19 @@ export function ChatView() {
       id = await newConv();
       if (!id) return;
     }
+    const convId = id; // the thread this stream belongs to
     setInput("");
     setMessages((m) => [...m, { role: "user", content }, { role: "assistant", content: "", pending: true }]);
     setStreaming(true);
+    const ac = new AbortController();
+    abortRef.current = ac;
+    const onThread = () => activeIdRef.current === convId; // only touch state if still on this thread
     try {
-      const res = await fetch(`/api/chats/${id}/message`, {
+      const res = await fetch(`/api/chats/${convId}/message`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ content }),
+        signal: ac.signal,
       });
       if (!res.ok || !res.body) throw new Error("stream failed");
       const reader = res.body.getReader();
@@ -82,7 +96,7 @@ export function ChatView() {
       let acc = "";
       for (;;) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done || !onThread()) break;
         buf += dec.decode(value, { stream: true });
         const parts = buf.split("\n\n");
         buf = parts.pop() ?? "";
@@ -97,27 +111,33 @@ export function ChatView() {
           }
           if (obj.type === "text") {
             acc += obj.text ?? "";
-            setMessages((m) => {
-              const copy = [...m];
-              copy[copy.length - 1] = { role: "assistant", content: acc, pending: true };
-              return copy;
-            });
+            if (onThread())
+              setMessages((m) => {
+                const copy = [...m];
+                copy[copy.length - 1] = { role: "assistant", content: acc, pending: true };
+                return copy;
+              });
           } else if (obj.type === "error") {
             toast.error(obj.error ?? "Error");
           }
         }
       }
-      setMessages((m) => {
-        const copy = [...m];
-        copy[copy.length - 1] = { role: "assistant", content: acc || "(no response)" };
-        return copy;
-      });
+      if (onThread())
+        setMessages((m) => {
+          const copy = [...m];
+          copy[copy.length - 1] = { role: "assistant", content: acc || "(no response)" };
+          return copy;
+        });
       loadConvs();
     } catch (e) {
+      if ((e as Error)?.name === "AbortError") return; // switched thread / unmounted — silent
       toast.error(e instanceof Error ? e.message : "Error while streaming");
-      setMessages((m) => m.filter((x) => !x.pending));
+      if (onThread()) setMessages((m) => m.filter((x) => !x.pending));
     } finally {
-      setStreaming(false);
+      if (abortRef.current === ac) {
+        abortRef.current = null;
+        setStreaming(false);
+      }
     }
   }
 
