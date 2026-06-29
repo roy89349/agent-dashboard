@@ -109,6 +109,14 @@ git -C "$REPO_DIR" worktree add -q -b "$BRANCH" "$WT" origin/main || fail "workt
 log "📦 npm install…"
 ( cd "$WT" && npm install --prefer-offline --no-audit --no-fund ) >>"$AGENT_LOG" 2>&1 || fail "npm install failed"
 
+ADDDIR=()
+VAULT_NOTE=""
+if [ -n "${VAULT_DIR:-}" ] && [ -d "$VAULT_DIR" ]; then
+  ADDDIR=(--add-dir "$VAULT_DIR")
+  VAULT_NOTE="
+- A knowledge base (notes vault) is attached via --add-dir; consult it for relevant context and record durable learnings there when useful."
+fi
+
 PROMPT="You are an autonomous software engineer working in an isolated git worktree on branch '$BRANCH' for ${PROJECT_NAME}${PROJECT_DESC:+ ($PROJECT_DESC)}.
 
 TASK (issue #$NUM): $TITLE
@@ -120,11 +128,11 @@ RULES:
 - Follow existing conventions and CLAUDE.md if present.
 - Run '$GREEN_CMD' and fix any errors YOU introduce until it passes.
 - Do NOT git commit/push/checkout; the harness handles git.
-- Do NOT touch secrets/.env files/deploy config/.github/workflows, or anything outside this task's scope.
+- Do NOT touch secrets/.env files/deploy config/.github/workflows, or anything outside this task's scope.$VAULT_NOTE
 - End with a 1-3 sentence summary of what you changed."
 
 log "🛠  building (model=$MODEL_SEL, max-turns=$MAX_TURNS)…"
-( cd "$WT" && claude -p "$PROMPT" --model "$MODEL_SEL" --effort "$EFFORT_SEL" --dangerously-skip-permissions --max-turns "$MAX_TURNS" ) \
+( cd "$WT" && claude -p "$PROMPT" --model "$MODEL_SEL" --effort "$EFFORT_SEL" ${ADDDIR[@]+"${ADDDIR[@]}"} --dangerously-skip-permissions --max-turns "$MAX_TURNS" ) \
   >"$AGENT_LOG" 2>&1 || log "claude exit≠0 (the gates decide from here)"
 
 if [ -n "$(git -C "$WT" status --porcelain -- package.json package-lock.json 2>/dev/null)" ]; then
