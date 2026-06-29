@@ -26,14 +26,12 @@ ripgrep, Tailscale, podman; creates user `fleet`; hardens SSH + firewall):
 ```bash
 curl -fsSL https://raw.githubusercontent.com/<owner>/agent-dashboard/main/deploy/bootstrap.sh -o bootstrap.sh
 bash bootstrap.sh
-# add YOUR ssh pubkey so you can log in as 'fleet':
-install -d -m700 -o fleet -g fleet /home/fleet/.ssh
-echo "<your-ssh-pubkey>" > /home/fleet/.ssh/authorized_keys
-chown fleet:fleet /home/fleet/.ssh/authorized_keys && chmod 600 /home/fleet/.ssh/authorized_keys
-# allow inbound on the tailscale interface (private), public stays SSH-only:
-ufw allow in on tailscale0
 ```
-(If the repo is private, instead of curl just `scp` your local `deploy/bootstrap.sh` up, or clone after step 4.)
+It installs the toolchain, creates user `fleet`, **copies your SSH key from root to `fleet`** and gives
+`fleet` passwordless sudo, then hardens SSH (root login off). When it finishes, log out and reconnect:
+```bash
+ssh fleet@<server-ip>
+```
 
 ## 3. Log in as fleet + clone
 ```bash
@@ -61,6 +59,7 @@ claude setup-token     # your Claude plan
 ## 6. Tailscale (private HTTPS)
 ```bash
 sudo tailscale up                 # opens a login link — approve the machine in your tailnet
+sudo ufw allow in on tailscale0   # allow private inbound on the tailnet (public stays SSH-only)
 tailscale serve --bg 3000         # serves https://<server>.<tailnet>.ts.net → localhost:3000
 tailscale serve status            # shows the exact HTTPS URL
 ```

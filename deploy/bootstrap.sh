@@ -33,10 +33,17 @@ curl -fsSL https://tailscale.com/install.sh | sh
 
 echo "== 5/8 non-root user '$FLEET_USER' =="
 id "$FLEET_USER" >/dev/null 2>&1 || adduser --disabled-password --gecos "" "$FLEET_USER"
-# Add your SSH pubkey so you can log in as 'fleet':
-#   install -d -m 700 -o $FLEET_USER -g $FLEET_USER /home/$FLEET_USER/.ssh
-#   echo "<your-ssh-pubkey>" > /home/$FLEET_USER/.ssh/authorized_keys
-#   chown $FLEET_USER:$FLEET_USER /home/$FLEET_USER/.ssh/authorized_keys; chmod 600 ...
+# Reuse the SSH key you already added to root (your provider injected it) so you can log in as 'fleet':
+install -d -m700 -o "$FLEET_USER" -g "$FLEET_USER" "/home/$FLEET_USER/.ssh"
+if [ -f /root/.ssh/authorized_keys ]; then
+  cp /root/.ssh/authorized_keys "/home/$FLEET_USER/.ssh/authorized_keys"
+  chown "$FLEET_USER:$FLEET_USER" "/home/$FLEET_USER/.ssh/authorized_keys"
+  chmod 600 "/home/$FLEET_USER/.ssh/authorized_keys"
+fi
+# passwordless sudo (the SSH key is the auth; the account has no password):
+usermod -aG sudo "$FLEET_USER"
+echo "$FLEET_USER ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/90-$FLEET_USER"
+chmod 440 "/etc/sudoers.d/90-$FLEET_USER"
 
 echo "== 6/8 firewall (default-deny inbound, SSH only) =="
 ufw default deny incoming
@@ -55,7 +62,9 @@ dpkg-reconfigure -f noninteractive unattended-upgrades || true
 
 cat <<EOF
 
-✅ Bootstrap done. Next steps (as user '$FLEET_USER') — full runbook in deploy/SERVER.md:
+✅ Bootstrap done. Reconnect as '$FLEET_USER' (your SSH key was copied from root):
+     ssh $FLEET_USER@<this-server-ip>
+   Then (full runbook: deploy/SERVER.md):
   1) git clone https://github.com/<owner>/agent-dashboard ~/agent-dashboard
   2) cd ~/agent-dashboard && ./setup.sh   (asks for your repo/paths/build-cmd/password; writes config + secret; runs npm ci)
   3) gh auth login (paste the FINE-GRAINED PAT) && gh auth setup-git
