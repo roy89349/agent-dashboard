@@ -1,0 +1,30 @@
+[Unit]
+Description=Mission Control fleet — autonomous build agents (supervisor loop)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fleet
+WorkingDirectory=/home/fleet/dev-fleet
+EnvironmentFile=/home/fleet/dev-fleet/fleet.env
+ExecStart=/home/fleet/dev-fleet/loop.sh
+Restart=always
+RestartSec=5
+# Begin conservatief; verhoog MAX_WORKERS pas na een week stabiele kosten.
+Environment=MAX_WORKERS=1
+
+# ── hardening ──
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+RestrictSUIDSGID=true
+# LET OP: dit isoleert de ORKESTRATOR, niet de agent-stap. De 'claude -p'-agent
+# draait met --dangerously-skip-permissions en moet in een aparte container
+# (deploy/run-agent-sandbox.sh) zonder $HOME-secrets + met egress-allowlist.
+# Zolang dat niet gewired is: draai NIET met onbeperkte/onvertrouwde backlog.
+
+[Install]
+WantedBy=multi-user.target
