@@ -43,6 +43,7 @@ export interface GitHubPull {
 export type FleetMode = "running" | "paused" | "stopped";
 export type RouterMode = "auto" | "sonnet" | "opus";
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+export type Depth = "solo" | "orchestrate";
 export type PauseReason = "paused" | "stopped" | "breaker" | "daycap" | "budget" | null;
 
 /** Desired state as the UI writes it to control/fleet.json (null knob = config default). */
@@ -56,9 +57,10 @@ export interface FleetDesired {
   fail_break: number | null;
   router: RouterMode | null;
   effort: Effort | null;
+  depth: Depth | null;
   review: "on" | "off" | null;
   priority: number[];
-  tasks: Record<string, { model?: "sonnet" | "opus"; effort?: Effort }>;
+  tasks: Record<string, { model?: "sonnet" | "opus"; effort?: Effort; depth?: Depth }>;
 }
 
 /** One active worker slot in status.json (the "who-does-what" lane). */
@@ -69,6 +71,7 @@ export interface SlotStatus {
   title: string | null;
   model: string | null;
   effort: string | null;
+  depth: string | null;
   phase: FleetState | null;
   started_at: string | null;
   elapsed_s: number | null;
@@ -92,6 +95,7 @@ export interface FleetStatus {
     router: string | null;
     review: string | null;
     effort: string | null;
+    depth: string | null;
   };
   breaker: { consecutive_fails: number; tripped: boolean };
   prs_today: number;

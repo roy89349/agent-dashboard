@@ -23,14 +23,14 @@ BEATER_PID=""
 # compose_beat: assemble the heartbeat (fresh beat_ts) and write it atomically. Only writer = the beater.
 compose_beat(){
   local ph; ph="$(cat "$PHASEF" 2>/dev/null)"
-  python3 - "$FLEET_SLOT" "$NUM" "$$" "${MODEL_SEL:-}" "$ph" "$TITLE" "$WORKER_START" "$(ts)" "${EFFORT_SEL:-}" <<'PY' | atomic_write "$HB"
+  python3 - "$FLEET_SLOT" "$NUM" "$$" "${MODEL_SEL:-}" "$ph" "$TITLE" "$WORKER_START" "$(ts)" "${EFFORT_SEL:-}" "${DEPTH_SEL:-}" <<'PY' | atomic_write "$HB"
 import json,sys
-slot,issue,pid,model,phase,title,started,beat,effort=sys.argv[1:10]
+slot,issue,pid,model,phase,title,started,beat,effort,depth=sys.argv[1:11]
 def i(x):
     try: return int(x)
     except Exception: return None
 print(json.dumps({"slot":i(slot),"issue":i(issue),"pid":i(pid),"model":model or None,
-  "phase":phase or None,"title":title,"started_at":started,"beat_ts":beat,"effort":effort or None},ensure_ascii=False))
+  "phase":phase or None,"title":title,"started_at":started,"beat_ts":beat,"effort":effort or None,"depth":depth or None},ensure_ascii=False))
 PY
 }
 # set_phase: foreground worker owns the phase file; ping the beater so the heartbeat updates immediately.
@@ -83,7 +83,8 @@ fi
 log "🎯 #$NUM: $TITLE"
 MODEL_SEL="$(route_model "$NUM" "$TITLE" "$BODY")"
 EFFORT_SEL="$(route_effort "$NUM")"
-log "🧠 model: $MODEL_SEL · effort: $EFFORT_SEL"
+DEPTH_SEL="$(route_depth "$NUM")"
+log "🧠 model: $MODEL_SEL · effort: $EFFORT_SEL · depth: $DEPTH_SEL"
 
 # Start the heartbeat beater: refreshes the heartbeat every HEARTBEAT_SEC (so a long
 # build is not falsely marked 'stale') + immediately on every phase change (USR1). Stops itself when
@@ -97,7 +98,7 @@ log "🧠 model: $MODEL_SEL · effort: $EFFORT_SEL"
   done ) &
 BEATER_PID=$!
 
-emit "$NUM" building "$(json_obj title "$TITLE" branch "$BRANCH" model "$MODEL_SEL" effort "$EFFORT_SEL")"; set_phase building
+emit "$NUM" building "$(json_obj title "$TITLE" branch "$BRANCH" model "$MODEL_SEL" effort "$EFFORT_SEL" depth "$DEPTH_SEL")"; set_phase building
 
 git -C "$REPO_DIR" fetch -q origin main || fail "git fetch failed"
 # clean up ONLY any stale worktree — do NOT kill the beater/heartbeat (otherwise
@@ -117,6 +118,14 @@ if [ -n "${VAULT_DIR:-}" ] && [ -d "$VAULT_DIR" ]; then
 - A knowledge base (notes vault) is attached via --add-dir; consult it for relevant context and record durable learnings there when useful."
 fi
 
+# Depth: solo (default) or orchestrate (fan out into sub-agents). Orchestrate gets more turns.
+TURNS="$MAX_TURNS"; ORCH_NOTE=""
+if [ "${DEPTH_SEL:-solo}" = "orchestrate" ]; then
+  TURNS="${ORCH_MAX_TURNS:-60}"
+  ORCH_NOTE="
+- ORCHESTRATE this task: decompose it and use the Task tool to run multiple sub-agents in parallel on independent parts (different files/areas), then integrate their work, resolve conflicts and make the build pass. Never let two sub-agents edit the same file at once."
+fi
+
 PROMPT="You are an autonomous software engineer working in an isolated git worktree on branch '$BRANCH' for ${PROJECT_NAME}${PROJECT_DESC:+ ($PROJECT_DESC)}.
 
 TASK (issue #$NUM): $TITLE
@@ -128,11 +137,11 @@ RULES:
 - Follow existing conventions and CLAUDE.md if present.
 - Run '$GREEN_CMD' and fix any errors YOU introduce until it passes.
 - Do NOT git commit/push/checkout; the harness handles git.
-- Do NOT touch secrets/.env files/deploy config/.github/workflows, or anything outside this task's scope.$VAULT_NOTE
+- Do NOT touch secrets/.env files/deploy config/.github/workflows, or anything outside this task's scope.$VAULT_NOTE$ORCH_NOTE
 - End with a 1-3 sentence summary of what you changed."
 
 log "🛠  building (model=$MODEL_SEL, max-turns=$MAX_TURNS)…"
-( cd "$WT" && claude -p "$PROMPT" --model "$MODEL_SEL" --effort "$EFFORT_SEL" ${ADDDIR[@]+"${ADDDIR[@]}"} --dangerously-skip-permissions --max-turns "$MAX_TURNS" ) \
+( cd "$WT" && claude -p "$PROMPT" --model "$MODEL_SEL" --effort "$EFFORT_SEL" ${ADDDIR[@]+"${ADDDIR[@]}"} --dangerously-skip-permissions --max-turns "$TURNS" ) \
   >"$AGENT_LOG" 2>&1 || log "claude exit≠0 (the gates decide from here)"
 
 if [ -n "$(git -C "$WT" status --porcelain -- package.json package-lock.json 2>/dev/null)" ]; then

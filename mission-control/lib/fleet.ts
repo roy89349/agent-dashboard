@@ -9,9 +9,11 @@ import type {
   FleetMode,
   RouterMode,
   Effort,
+  Depth,
 } from "./types";
 
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
+const DEPTHS = ["solo", "orchestrate"];
 
 /**
  * The only filesystem bridge between the dashboard (UI) and the fleet, co-located on
@@ -83,6 +85,7 @@ function defaultDesired(): FleetDesired {
     fail_break: null,
     router: null,
     effort: null,
+    depth: null,
     review: null,
     priority: [],
     tasks: {},
@@ -174,9 +177,10 @@ export interface FleetPatch {
   fail_break?: number | null;
   router?: RouterMode | null;
   effort?: Effort | null;
+  depth?: Depth | null;
   review?: "on" | "off" | null;
   priority?: number[];
-  tasks?: Record<string, { model?: "sonnet" | "opus"; effort?: Effort }>;
+  tasks?: Record<string, { model?: "sonnet" | "opus"; effort?: Effort; depth?: Depth }>;
 }
 
 function sanitizePatch(patch: FleetPatch, current: FleetDesired): Partial<FleetDesired> {
@@ -209,6 +213,11 @@ function sanitizePatch(patch: FleetPatch, current: FleetDesired): Partial<FleetD
       throw new HttpError(400, "invalid effort");
     out.effort = patch.effort;
   }
+  if (patch.depth !== undefined) {
+    if (patch.depth !== null && !DEPTHS.includes(patch.depth))
+      throw new HttpError(400, "invalid depth");
+    out.depth = patch.depth;
+  }
   if (patch.review !== undefined) {
     if (patch.review !== null && !["on", "off"].includes(patch.review))
       throw new HttpError(400, "invalid review value");
@@ -224,16 +233,18 @@ function sanitizePatch(patch: FleetPatch, current: FleetDesired): Partial<FleetD
   if (patch.tasks !== undefined) {
     if (typeof patch.tasks !== "object" || patch.tasks === null)
       throw new HttpError(400, "tasks must be an object");
-    const t: Record<string, { model?: "sonnet" | "opus"; effort?: Effort }> = {};
+    const t: Record<string, { model?: "sonnet" | "opus"; effort?: Effort; depth?: Depth }> = {};
     for (const [k, v] of Object.entries(patch.tasks)) {
       const n = Math.trunc(Number(k));
       if (!Number.isInteger(n) || n < 1 || n > ISSUE_MAX) continue;
-      const entry: { model?: "sonnet" | "opus"; effort?: Effort } = {};
+      const entry: { model?: "sonnet" | "opus"; effort?: Effort; depth?: Depth } = {};
       const model = (v as { model?: string })?.model;
       if (model === "sonnet" || model === "opus") entry.model = model;
       const eff = (v as { effort?: string })?.effort;
       if (eff && EFFORTS.includes(eff)) entry.effort = eff as Effort;
-      if (entry.model || entry.effort) t[String(n)] = entry;
+      const dep = (v as { depth?: string })?.depth;
+      if (dep && DEPTHS.includes(dep)) entry.depth = dep as Depth;
+      if (entry.model || entry.effort || entry.depth) t[String(n)] = entry;
     }
     out.tasks = t;
   }
@@ -251,10 +262,15 @@ function isDangerous(patch: Partial<FleetDesired>, current: FleetDesired): boole
   if (patch.mode === "stopped") return true;
   if (patch.router === "opus") return true;
   if (patch.effort === "xhigh" || patch.effort === "max") return true;
+  if (patch.depth === "orchestrate") return true;
   if (
     patch.tasks &&
     Object.values(patch.tasks).some(
-      (x) => x.model === "opus" || x.effort === "xhigh" || x.effort === "max",
+      (x) =>
+        x.model === "opus" ||
+        x.effort === "xhigh" ||
+        x.effort === "max" ||
+        x.depth === "orchestrate",
     )
   )
     return true;

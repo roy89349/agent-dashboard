@@ -25,6 +25,7 @@ export function ControlBar() {
           router: desired.router,
           review: desired.review,
           effort: desired.effort,
+          depth: desired.depth,
         }
       : null);
   const mode = status?.mode ?? desired?.mode ?? "running";
@@ -88,6 +89,11 @@ export function ControlBar() {
           onChange={(v) => {
             if ((v === "xhigh" || v === "max") && !confirm("High effort costs more tokens. Continue?")) return;
             patch({ effort: v }, true);
+          }} />
+        <Select label="Depth" value={k?.depth ?? "solo"} options={["solo", "orchestrate"]} busy={busy}
+          onChange={(v) => {
+            if (v === "orchestrate" && !confirm("Orchestrate fans the agent out into sub-agents — deeper, but more tokens. Continue?")) return;
+            patch({ depth: v }, true);
           }} />
         <Select label="Review" value={k?.review ?? "on"} options={["on", "off"]} busy={busy}
           onChange={(v) => patch({ review: v })} />

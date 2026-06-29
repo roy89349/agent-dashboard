@@ -56,6 +56,9 @@ function WorkerLane({ slot, onCmd }: { slot: SlotStatus; onCmd: (cmd: string, is
                 <Bot className="size-3" /> {slot.model}{slot.effort ? ` · ${slot.effort}` : ""}
               </span>
             )}
+            {slot.depth === "orchestrate" && (
+              <span className="rounded bg-indigo-500/30 px-1.5 py-0.5 text-indigo-200">orchestrate</span>
+            )}
             <span className="inline-flex items-center gap-1 text-white/40">
               <Clock className="size-3" /> {fmtDur(slot.elapsed_s)}
             </span>

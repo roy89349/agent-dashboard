@@ -216,7 +216,7 @@ status_write(){
   ST_NOW="$(date +%s)" ST_HBNOW="$(ts)" \
   ST_MODE="$1" ST_CLAIMING="$2" ST_PAUSE="$3" \
   ST_MW="$MW" ST_DAYCAP="$DAYCAP" ST_FB="$FB" \
-  ST_ROUTER="$(fleet_get router '')" ST_REVIEW="$(fleet_get review "${REVIEW:-on}")" ST_EFFORT="$(fleet_get effort '')" \
+  ST_ROUTER="$(fleet_get router '')" ST_REVIEW="$(fleet_get review "${REVIEW:-on}")" ST_EFFORT="$(fleet_get effort '')" ST_DEPTH="$(fleet_get depth '')" \
   ST_CF="$(consecutive_fails)" ST_PRS="$(count_today pr-open)" ST_ATT="$(count_today building)" \
   ST_REV="$(fleet_get rev 0)" ST_SUPPID="$SUPERVISOR_PID" ST_HB="${HEARTBEAT_SEC:-10}" \
   ST_BB="${PHASE_BUDGET_BUILDING_SEC:-1800}" ST_BG="${PHASE_BUDGET_GATING_SEC:-600}" ST_BO="${PHASE_BUDGET_OTHER_SEC:-300}" \
@@ -255,7 +255,7 @@ for r in rows:
     if be is not None and (now-be)>2*hb: stale=True
     if page is not None and budget and page>budget: stale=True
     slots.append({"slot":I(slot),"pid":I(pid),"issue":I(issue),
-        "title":d.get('title'),"model":d.get('model'),"effort":d.get('effort'),"phase":phase,
+        "title":d.get('title'),"model":d.get('model'),"effort":d.get('effort'),"depth":d.get('depth'),"phase":phase,
         "started_at":d.get('started_at'),"elapsed_s":elapsed,"phase_age_s":page,
         "stale":stale,"log":"/api/fleet/log?issue=%s"%issue})
 fb=int(env('ST_FB','0') or 0); cf=int(env('ST_CF','0') or 0)
@@ -264,7 +264,7 @@ out={"schema":1,"supervisor_pid":I(env('ST_SUPPID')),"heartbeat":env('ST_HBNOW')
   "pause_reason":(env('ST_PAUSE') or None),
   "knobs":{"max_workers":I(env('ST_MW')),"max_pr_per_day":I(env('ST_DAYCAP')),
     "fail_break":fb,"router":(env('ST_ROUTER') or None),"review":env('ST_REVIEW'),
-    "effort":(env('ST_EFFORT') or None)},
+    "effort":(env('ST_EFFORT') or None),"depth":(env('ST_DEPTH') or None)},
   "breaker":{"consecutive_fails":cf,"tripped":cf>=fb},
   "prs_today":int(env('ST_PRS','0') or 0),"attempts_today":int(env('ST_ATT','0') or 0),
   "applied_rev":int(env('ST_REV','0') or 0),"slots":slots}

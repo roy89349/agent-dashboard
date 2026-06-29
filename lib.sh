@@ -96,6 +96,14 @@ route_effort(){
   case "$e" in low|medium|high|xhigh|max) echo "$e";; *) echo medium;; esac
 }
 
+# route_depth <issue> -> solo|orchestrate  (per-task > global fleet.json > config DEPTH)
+route_depth(){
+  local d
+  d="$(task_field "$1" depth)"; [ -n "$d" ] || d="$(fleet_get depth '')"
+  [ -n "$d" ] || d="${DEPTH:-solo}"
+  case "$d" in solo|orchestrate) echo "$d";; *) echo solo;; esac
+}
+
 # cmd_field <json-line> <key> : field from one command line as ONE python argv (never eval/field-split).
 cmd_field(){
   python3 -c 'import json,sys
