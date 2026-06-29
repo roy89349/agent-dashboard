@@ -6,13 +6,14 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=fleet
-WorkingDirectory=/home/fleet/dev-fleet
-EnvironmentFile=/home/fleet/dev-fleet/fleet.env
-ExecStart=/home/fleet/dev-fleet/loop.sh
+WorkingDirectory=/home/fleet/agent-dashboard
+ExecStart=/home/fleet/agent-dashboard/loop.sh
+# claude/gh/git/npm must be on PATH for the worker; HOME is set automatically from User=.
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/fleet/.local/bin
+# Config comes from config.env + config.local.env (sourced by lib.sh). Start conservatively:
+Environment=MAX_WORKERS=1
 Restart=always
 RestartSec=5
-# Begin conservatief; verhoog MAX_WORKERS pas na een week stabiele kosten.
-Environment=MAX_WORKERS=1
 
 # ── hardening ──
 NoNewPrivileges=true
@@ -21,10 +22,9 @@ ProtectControlGroups=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
 RestrictSUIDSGID=true
-# LET OP: dit isoleert de ORKESTRATOR, niet de agent-stap. De 'claude -p'-agent
-# draait met --dangerously-skip-permissions en moet in een aparte container
-# (deploy/run-agent-sandbox.sh) zonder $HOME-secrets + met egress-allowlist.
-# Zolang dat niet gewired is: draai NIET met onbeperkte/onvertrouwde backlog.
+# NOTE: this isolates the ORCHESTRATOR, not the agent step. The 'claude -p' build agent runs with
+# --dangerously-skip-permissions and must run in a separate container (deploy/run-agent-sandbox.sh)
+# without $HOME secrets + with an egress allowlist before you run an untrusted backlog 24/7. See deploy/FASE-0-CHECKLIST.md.
 
 [Install]
 WantedBy=multi-user.target

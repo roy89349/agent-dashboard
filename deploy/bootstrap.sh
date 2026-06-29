@@ -9,10 +9,10 @@ FLEET_USER="${FLEET_USER:-fleet}"
 echo "== 1/8 system update =="
 export DEBIAN_FRONTEND=noninteractive
 apt-get update && apt-get -y upgrade
-apt-get install -y curl git jq ufw fail2ban unattended-upgrades podman ca-certificates
+apt-get install -y curl git jq ufw fail2ban unattended-upgrades podman ca-certificates ripgrep
 
-echo "== 2/8 Node 22 =="
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+echo "== 2/8 Node 24 =="   # node:sqlite needs Node 22.5+; 24 to match .nvmrc
+curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
 apt-get install -y nodejs
 
 echo "== 3/8 GitHub CLI =="
@@ -27,6 +27,9 @@ apt-get update && apt-get install -y gh
 
 echo "== 4/8 Claude Code CLI =="
 npm install -g @anthropic-ai/claude-code
+
+echo "== 4b/8 Tailscale (private access) =="
+curl -fsSL https://tailscale.com/install.sh | sh
 
 echo "== 5/8 non-root user '$FLEET_USER' =="
 id "$FLEET_USER" >/dev/null 2>&1 || adduser --disabled-password --gecos "" "$FLEET_USER"
@@ -52,15 +55,15 @@ dpkg-reconfigure -f noninteractive unattended-upgrades || true
 
 cat <<EOF
 
-✅ Bootstrap done. Next steps (as user '$FLEET_USER'):
-  1) git clone <your dev-fleet repo, or copy your local \$FLEET_DIR here> ~/dev-fleet
-     and clone the target repo:  git clone https://github.com/<owner/repo> ~/<repo>
-  2) gh auth login   →  paste the FINE-GRAINED PAT (Contents/Issues/PR write, NO admin/workflow)
-     gh auth setup-git
-  3) claude setup-token   →  your Claude plan (or an API key with a budget cap)
-  4) create ~/dev-fleet/fleet.env (see deploy/fleet.env.example) with REPO_DIR=/home/$FLEET_USER/<repo>
-  5) ⚠️ BEFORE 24/7: wire the agent step into containment (deploy/run-agent-sandbox.sh) and
-     set the cloud firewall egress allowlist. See deploy/README.md.
-  6) sudo cp deploy/dev-fleet.service /etc/systemd/system/ && sudo systemctl enable --now dev-fleet
-     journalctl -u dev-fleet -f
+✅ Bootstrap done. Next steps (as user '$FLEET_USER') — full runbook in deploy/SERVER.md:
+  1) git clone https://github.com/<owner>/agent-dashboard ~/agent-dashboard
+  2) cd ~/agent-dashboard && ./setup.sh   (asks for your repo/paths/build-cmd/password; writes config + secret; runs npm ci)
+  3) gh auth login (paste the FINE-GRAINED PAT) && gh auth setup-git
+  4) claude setup-token   (your Claude plan)
+  5) sudo tailscale up   then   tailscale serve --bg 3000   (HTTPS dashboard on your tailnet)
+  6) cd ~/agent-dashboard/mission-control && npm run build
+  7) sudo cp deploy/mission-control-dashboard.service deploy/dev-fleet.service /etc/systemd/system/
+     sudo systemctl enable --now mission-control-dashboard
+  8) ⚠️ BEFORE running the fleet 24/7: finish deploy/FASE-0-CHECKLIST.md (protect main, fine-grained PAT,
+     containment via deploy/run-agent-sandbox.sh + egress allowlist), THEN: sudo systemctl enable --now dev-fleet
 EOF
