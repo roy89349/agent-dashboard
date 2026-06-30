@@ -1,7 +1,7 @@
 // Mirror of the fleet telemetry (lib.sh emit -> state/issue-<n>.json).
 // One-to-one with the fields the fleet writes out.
 export type FleetState =
-  | "claimed" | "building" | "gating" | "pr-open" | "reviewed" | "failed";
+  | "claimed" | "building" | "security" | "gating" | "pr-open" | "reviewed" | "failed";
 
 export type ReviewVerdict = "approve" | "caution" | "reject" | "reviewed";
 
@@ -145,6 +145,7 @@ export function deriveColumn(
   if (
     labels.includes("agent-wip") ||
     state === "building" ||
+    state === "security" ||
     state === "gating" ||
     state === "claimed"
   )

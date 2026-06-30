@@ -242,6 +242,34 @@ $3" --model "${ROUTER_MODEL:-haiku}" 2>/dev/null | tr 'A-Z' 'a-z' | grep -oE 'so
   echo "${out:-sonnet}"
 }
 
+# parse_verdict <agent-output> -> approve | caution | reject | unknown.
+# Robust: the verdict is meant to be on line 1 (emoji ✅/⚠️/❌ or the word approve/caution/reject);
+# prefer line 1, fall back to scanning the whole text; severity reject > caution > approve.
+parse_verdict(){
+  local first whole s
+  first="$(printf '%s' "$1" | head -n1 | tr 'A-Z' 'a-z')"
+  whole="$(printf '%s' "$1" | tr 'A-Z' 'a-z')"
+  for s in "$first" "$whole"; do
+    case "$s" in
+      *❌*|*reject*)  echo reject;  return;;
+      *⚠️*|*caution*) echo caution; return;;
+      *✅*|*approve*) echo approve; return;;
+    esac
+  done
+  echo unknown
+}
+
+# security_decision <verdict> <blocking(true|false)> -> pass | fail.
+# reject (or unparseable 'unknown') only blocks when the agent is blocking; caution/approve always pass.
+# Mirrors worker.sh exactly so the decision is unit-testable without invoking the model.
+security_decision(){
+  case "$1" in
+    reject|unknown) [ "$2" = true ] && echo fail || echo pass ;;
+    caution|approve) echo pass ;;
+    *)              [ "$2" = true ] && echo fail || echo pass ;;
+  esac
+}
+
 # count_today <state> -> number of events with that state today (for day-cap)
 count_today(){
   python3 -c 'import sys,json

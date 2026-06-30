@@ -187,6 +187,35 @@ if git -C "$WT" diff --cached | grep -qE "$SECRET_RE"; then
   fail "diff contains a possible secret — rejected"
 fi
 
+# ── SECURITY-GATE (config-driven blocking agent; runs between the secret-gate and the green-gate) ──
+# Runs ONLY when an enabled agent with role 'security' exists in agents.json — otherwise skipped
+# (backward compatible: the prior flow had no security phase). It reads the STAGED diff (analysis
+# only, no code execution) and returns a verdict. A blocking REJECT (or an unparseable verdict when
+# blocking) ends the task via fail() — same failure flow, agent-failed label and breaker fuel as any
+# other failure. It NEVER writes labels itself (only emit/set_phase + the existing fail()).
+SEC_ID="$(role_field security id)"
+if [ -n "$SEC_ID" ]; then
+  emit "$NUM" security '{}'; set_phase security
+  SEC_BLOCK="$(role_field security blocking)"; [ -n "$SEC_BLOCK" ] || SEC_BLOCK=true
+  SEC_MODEL="$(role_field security model_default)"
+  { [ "$SEC_MODEL" = opus ] && [ "${ALLOW_GLOBAL_OPUS:-0}" != 1 ]; } && SEC_MODEL=sonnet
+  [ -n "$SEC_MODEL" ] || SEC_MODEL=sonnet
+  SEC_DIFF="$(git -C "$WT" diff --cached | head -c 60000)"
+  SEC_OUT="$(claude -p "You are a strict application SECURITY reviewer for ${PROJECT_NAME}. Review ONLY this staged git diff and decide if it is safe to merge.
+Flag any of: hardcoded secrets / API keys / credentials or credential exposure; new or changed .env / config / secret files; authentication or authorization changes; added or changed dependencies (supply-chain); database schema or migration changes; GitHub Actions / workflow changes.
+Answer EXACTLY: line 1 = a single verdict word — APPROVE, CAUTION or REJECT; then up to 5 short bullets naming the security-relevant findings (or 'no security-relevant changes'). Use REJECT only for a real exploitable risk or a leaked secret; CAUTION when a human must look; APPROVE when nothing is security-relevant.
+
+DIFF:
+$SEC_DIFF" --model "$SEC_MODEL" 2>/dev/null)"
+  SEC_VERDICT="$(parse_verdict "$SEC_OUT")"
+  log "🛡  security agent ($SEC_MODEL) verdict: $SEC_VERDICT (blocking=$SEC_BLOCK)"
+  emit "$NUM" security "$(json_obj verdict "$SEC_VERDICT" blocking "$SEC_BLOCK")"
+  if [ "$(security_decision "$SEC_VERDICT" "$SEC_BLOCK")" = fail ]; then
+    fail "security agent $SEC_VERDICT (blocking) — $(printf '%s' "$SEC_OUT" | head -n1 | head -c 200)"
+  fi
+  [ "$SEC_VERDICT" = reject ] && log "⚠️ security REJECT is advisory (agent non-blocking) — continuing"
+fi
+
 # ── GREEN-GATE already ran inside the sandbox (exit code checked above) ──
 emit "$NUM" gating '{}'; set_phase gating
 log "🚦 green-gate passed in sandbox: $GREEN_CMD"
@@ -213,22 +242,32 @@ gh issue comment "$NUM" --repo "$REPO" --body "🤖 PR opened: $PR_URL" >/dev/nu
 # a kill/cancel/stop during the reviewer phase does not relabel the issue back to ready/cancelled.
 trap - INT TERM
 
-# ── REVIEWER-AGENT (live on/off via control-plane) ──
+# ── REVIEWER-AGENT (config-driven QA agent; live on/off via control-plane REVIEW) ──
+# The reviewer is now driven by the 'qa' agent in agents.json (model/name/prompt), but stays gated by
+# REVIEW for backward compatibility and stays ADVISORY (the PR is already open — it comments, never
+# blocks). Falls back to REVIEW_MODEL + the built-in prompt when no qa agent / registry is present.
 REVIEW_EFF="$(fleet_get review "${REVIEW:-on}")"
 if [ "$REVIEW_EFF" = "on" ]; then
-  log "🔎 reviewer-agent…"
+  RV_MODEL="$(role_field qa model_default)"
+  { [ "$RV_MODEL" = opus ] && [ "${ALLOW_GLOBAL_OPUS:-0}" != 1 ]; } && RV_MODEL=sonnet
+  [ -n "$RV_MODEL" ] || RV_MODEL="${REVIEW_MODEL:-sonnet}"
+  RV_NAME="$(role_field qa name)"; [ -n "$RV_NAME" ] || RV_NAME="Reviewer-agent"
+  RV_REF="$(role_field qa system_prompt_ref)"
+  if [ -n "$RV_REF" ] && [ -f "$FLEET_DIR/$RV_REF" ]; then RV_SYS="$(cat "$FLEET_DIR/$RV_REF")"
+  else RV_SYS="You are a strict senior code reviewer. Review this PR diff for ${PROJECT_NAME}. Answer in English: line 1 = verdict starting with exactly one of ✅ / ⚠️ / ❌; then 2-5 bullets with concrete points (bugs, scope creep, security, edge cases, style); optional short suggestions. Honest and concise."
+  fi
+  log "🔎 reviewer-agent ($RV_NAME, $RV_MODEL)…"
   DIFF="$(gh pr diff "$PR_URL" --repo "$REPO" 2>/dev/null | head -c 60000)"
   if [ -n "$DIFF" ]; then
-    REVIEW_OUT="$(claude -p "You are a strict senior code reviewer. Review this PR diff for ${PROJECT_NAME}. Answer in English: line 1 = verdict starting with exactly one of ✅ / ⚠️ / ❌; then 2-5 bullets with concrete points (bugs, scope creep, security, edge cases, style); optional short suggestions. Honest and concise.
+    REVIEW_OUT="$(claude -p "$RV_SYS
 
 DIFF:
-$DIFF" --model "${REVIEW_MODEL:-sonnet}" 2>/dev/null)"
+$DIFF" --model "$RV_MODEL" 2>/dev/null)"
     if [ -n "$REVIEW_OUT" ]; then
-      gh pr comment "$PR_URL" --repo "$REPO" --body "🔎 **Reviewer-agent**
+      gh pr comment "$PR_URL" --repo "$REPO" --body "🔎 **$RV_NAME**
 
 $REVIEW_OUT" >/dev/null 2>&1 || true
-      VERDICT=reviewed
-      case "$REVIEW_OUT" in (*❌*) VERDICT=reject;; (*⚠️*) VERDICT=caution;; (*✅*) VERDICT=approve;; esac
+      VERDICT="$(parse_verdict "$REVIEW_OUT")"; [ "$VERDICT" = unknown ] && VERDICT=reviewed
       emit "$NUM" reviewed "$(json_obj pr_url "$PR_URL" review_verdict "$VERDICT")"; set_phase reviewed
       log "🔎 verdict: $VERDICT"
     fi
