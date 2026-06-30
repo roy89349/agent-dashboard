@@ -83,6 +83,22 @@ test("opus write-gate: model_default 'opus' rejected unless ALLOW_GLOBAL_OPUS=1"
   );
 });
 
+test("opus gate fires on CHANGE only: linking a skill to an existing opus agent succeeds when the gate is off", () => {
+  freshDir(SEED);
+  process.env.ALLOW_GLOBAL_OPUS = "1";
+  const rev1 = writeAgents({ upsert: { id: "architect", role: "architect", model_default: "opus" } }, 0);
+  delete process.env.ALLOW_GLOBAL_OPUS; // gate now OFF, but architect stays opus
+  // a partial upsert that does NOT change model_default (linking a skill) must NOT 403
+  const rev2 = writeAgents({ upsert: { id: "architect", skill_ids: ["read-codebase"] } }, rev1);
+  assert.equal(rev2, 2);
+  assert.deepEqual(readAgents().agents.find((a) => a.id === "architect")!.skill_ids, ["read-codebase"]);
+  // but introducing a NEW opus agent is still blocked
+  assert.throws(
+    () => writeAgents({ upsert: { id: "newone", role: "backend", model_default: "opus" } }, readAgents().rev),
+    (e: unknown) => httpStatusOf(e) === 403,
+  );
+});
+
 test("normalizeAgent: fills defaults, clamps, validates id", () => {
   freshDir();
   const a = normalizeAgent({

@@ -196,7 +196,8 @@ export interface Agent {
   id: string; // stable slug, unique within the registry
   name: string;
   role: AgentRole;
-  skills: string[];
+  skills: string[]; // free-text display tags (legacy)
+  skill_ids: string[]; // linked Skill registry ids (lib/skills.ts) — additive; not read by the build yet
   enabled: boolean;
   model_default: AgentModel; // opus only honoured when ALLOW_GLOBAL_OPUS=1 (write-gated + downstream)
   effort_default: Effort;
@@ -326,4 +327,46 @@ export interface TeamRule {
 export interface TeamRulesFile {
   schema: number;
   rules: TeamRule[];
+}
+
+// ── Skill Library (control/skills.json) — capabilities as explicit lego-blocks ──────────────────────
+// A Skill is a CAPABILITY (what an agent CAN do), not a permission (what it MAY do — that's governed by
+// autonomy + the team approval policy). Config-driven + additive: nothing in the issue→agent→PR flow reads
+// skills yet; agents reference skills by id (Agent.skill_ids). Dangerous skills carry approval_required so a
+// future consumer routes their use through the durable-approvals system (and the UI warns on risky combos).
+export type SkillRisk = "low" | "medium" | "high" | "critical";
+export const SKILL_RISKS: SkillRisk[] = ["low", "medium", "high", "critical"];
+
+export interface Skill {
+  id: string; // slug — same regex as Agent.id
+  name: string;
+  description: string;
+  category: string; // open string (config-driven): code · github · quality · data · ops · …
+  risk_level: SkillRisk;
+  required_permissions: string[]; // capability tokens this skill needs (e.g. "repo:write", "db:read")
+  compatible_roles: string[]; // roles this skill suits; EMPTY = all roles
+  allowed_tools: string[]; // tools the skill grants (e.g. ["Read","Edit","Bash"])
+  approval_required: boolean; // each USE needs an approval (ties dangerous skills to the approvals system)
+  config_schema: Record<string, unknown> | null; // optional JSON schema for per-use config
+  enabled: boolean;
+  archived: boolean; // soft-delete: hidden from active use, kept for history
+  created_at: string;
+  updated_at: string;
+}
+
+/** Partial as the UI submits it (id required, rest merged over the existing record then defaulted). */
+export type SkillInput = Partial<Skill> & { id: string };
+
+/** control/skills.json — CAS-guarded by rev, identical envelope to AgentsFile. */
+export interface SkillsFile {
+  schema: number;
+  rev: number;
+  updated_at: string | null;
+  skills: Skill[];
+}
+
+export interface SkillsPatch {
+  upsert?: SkillInput; // create/update one skill by id (merge)
+  remove?: string; // hard-remove one skill by id (archive is the soft default)
+  skills?: SkillInput[]; // replace the whole list — requires confirm:true
 }

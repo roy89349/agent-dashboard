@@ -16,6 +16,7 @@ import {
   Play,
   Pause,
   Network,
+  Boxes,
 } from "lucide-react";
 import { CommandPalette } from "./command-palette";
 import { MobileNav } from "./mobile-nav";
@@ -29,6 +30,7 @@ const NAV = [
   { href: "/workers", label: "War Room", icon: Radio },
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/team-composer", label: "Team Composer", icon: Network },
+  { href: "/skills", label: "Skills", icon: Boxes },
   { href: "/chats", label: "Conversations", icon: MessagesSquare },
   { href: "/kennis", label: "Knowledge", icon: BookOpen },
   { href: "/config", label: "Config", icon: Settings },
@@ -40,6 +42,7 @@ const TITLES: Record<string, string> = {
   "/workers": "War Room",
   "/agents": "Agents",
   "/team-composer": "Team Composer",
+  "/skills": "Skill Library",
   "/chats": "Conversations",
   "/kennis": "Knowledge",
   "/config": "Config",

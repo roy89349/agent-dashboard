@@ -87,6 +87,7 @@ export function normalizeAgent(input: AgentInput): Agent {
     name: typeof input.name === "string" && input.name ? input.name.slice(0, 120) : input.id,
     role,
     skills: strArr(input.skills),
+    skill_ids: strArr(input.skill_ids), // linked Skill registry ids (additive; defaults to [])
     enabled: input.enabled !== false, // default ON
     model_default: model,
     effort_default: effort,
@@ -196,10 +197,13 @@ export interface AgentsPatch {
  *  Opus write-gate: model_default 'opus' is rejected (403) unless ALLOW_GLOBAL_OPUS=1 — exactly like
  *  the fleet.ts knob, applied to every agent that this patch creates or replaces. */
 export function sanitizeAgentPatch(patch: AgentsPatch, current: AgentsFile): Agent[] {
-  const gate = (a: Agent): Agent => {
-    if (a.model_default === "opus" && !ALLOW_GLOBAL_OPUS())
+  // Gate opus/full ONLY when the value is newly SET (vs the prior record) — re-saving an already-opus/full
+  // agent (e.g. an inert skill_ids link) must not 403 on a field it isn't changing. Mirrors the route's
+  // FLEET_FIELDS on-change check. A brand-new opus/full agent (no prior) is still blocked.
+  const gate = (a: Agent, prior?: Agent): Agent => {
+    if (a.model_default === "opus" && !ALLOW_GLOBAL_OPUS() && prior?.model_default !== "opus")
       throw new HttpError(403, `agent ${a.id}: model_default 'opus' is disabled (ALLOW_GLOBAL_OPUS)`);
-    if (a.autonomy === "full" && !ALLOW_AUTO_MERGE())
+    if (a.autonomy === "full" && !ALLOW_AUTO_MERGE() && prior?.autonomy !== "full")
       throw new HttpError(403, `agent ${a.id}: autonomy 'full' (self-merge) is disabled (ALLOW_AUTO_MERGE)`);
     return a;
   };
@@ -208,7 +212,7 @@ export function sanitizeAgentPatch(patch: AgentsPatch, current: AgentsFile): Age
     if (!Array.isArray(patch.agents)) throw new HttpError(400, "agents must be a list");
     const seen = new Set<string>();
     list = patch.agents.map((a) => {
-      const n = gate(normalizeAgent(a));
+      const n = gate(normalizeAgent(a), current.agents.find((x) => x.id === a.id));
       if (seen.has(n.id)) throw new HttpError(400, `duplicate agent id: ${n.id}`);
       seen.add(n.id);
       return n;
@@ -221,7 +225,7 @@ export function sanitizeAgentPatch(patch: AgentsPatch, current: AgentsFile): Age
     // MERGE over the existing record so a partial upsert ({id, enabled} / {id, autonomy}) only changes
     // the named fields instead of resetting the agent to defaults. New id → normalize from defaults.
     const merged = (i >= 0 ? { ...list[i], ...patch.upsert } : patch.upsert) as AgentInput;
-    const n = gate(normalizeAgent(merged));
+    const n = gate(normalizeAgent(merged), i >= 0 ? list[i] : undefined);
     if (i >= 0) list[i] = n;
     else list.push(n);
     if (list.length > 200) throw new HttpError(400, "too many agents (max 200)");
