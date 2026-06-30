@@ -22,6 +22,10 @@ mission-control/next-env.d.ts
 mission-control/*.tsbuildinfo
 **/*.log
 
+# ── local-only planning / journal (private — not for the public repo) ──
+/MISSION_CONTROL_MASTERPLAN.md
+/docs/build-journal/
+
 # ── OS ──
 .DS_Store
 Thumbs.db
