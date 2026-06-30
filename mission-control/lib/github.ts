@@ -58,19 +58,26 @@ export async function listOpenPulls(): Promise<GitHubPull[]> {
   });
 }
 
-/** Taakintake: NL-tekst -> issue met label agent-ready. De fleet pakt 'm op. */
+/** Taakintake: NL-tekst -> issue met label agent-ready (+ optionele extra labels, bv. een rol). */
 export async function createAgentTask(input: {
   title: string;
   body?: string;
+  labels?: string[];
+  source?: string;
 }): Promise<{ number: number; url: string }> {
+  const labels = ["agent-ready", ...(input.labels ?? [])]
+    .map((l) => String(l).trim())
+    .filter((l) => /^[A-Za-z0-9 ._-]{1,50}$/.test(l)) // safe label names only
+    .filter((l, i, a) => a.indexOf(l) === i)
+    .slice(0, 8);
   const res = await gh(`/repos/${REPO}/issues`, {
     method: "POST",
     body: JSON.stringify({
-      title: input.title.trim(),
+      title: input.title.trim().slice(0, 240),
       body:
         (input.body?.trim() ? input.body.trim() + "\n\n" : "") +
-        "— Created via Mission Control.",
-      labels: ["agent-ready"],
+        `— Created via Mission Control${input.source ? ` (${input.source})` : ""}.`,
+      labels,
     }),
   });
   if (!res.ok) throw new Error(`GitHub create issue ${res.status}: ${await res.text()}`);

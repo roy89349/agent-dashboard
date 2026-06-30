@@ -3,7 +3,9 @@ import { verifySession } from "@/lib/session";
 
 // Next.js 16 Proxy (formerly Middleware): single-user gate.
 // Everything except /login + /api/login requires a valid mc_session cookie.
-const PUBLIC = ["/login", "/api/login"];
+// The phone webhook is public (no browser cookie) — it authenticates itself via the provider's
+// allowed chat/user id + an optional webhook secret (see app/api/integrations/*/webhook).
+const PUBLIC = ["/login", "/api/login", "/api/integrations/telegram/webhook", "/api/integrations/whatsapp/webhook"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

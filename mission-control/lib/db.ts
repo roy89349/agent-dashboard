@@ -1,4 +1,5 @@
-import "server-only";
+// server-side only (uses node:sqlite + node:fs). Not importing "server-only" so the unit tests can
+// run under `node --test`; node:sqlite already makes this unusable in a client bundle.
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -54,6 +55,44 @@ export function db(): DatabaseSync {
       key   TEXT PRIMARY KEY,
       value TEXT
     );
+    -- durable approvals (decision inbox: dashboard + phone). The token is stored HASHED, single-use.
+    CREATE TABLE IF NOT EXISTS approvals (
+      id                    TEXT PRIMARY KEY,
+      kind                  TEXT NOT NULL,        -- merge|cap_increase|force_opus|deploy|secret_access|plan_signoff|risky_action|prompt_confirm
+      work_item_id          TEXT,
+      issue                 INTEGER,
+      pr                    INTEGER,
+      agent_id              TEXT,
+      requested_by_agent_id TEXT,
+      summary               TEXT NOT NULL,
+      diff_preview          TEXT,                 -- already REDACTED + truncated before insert
+      risk                  TEXT,
+      advice                TEXT,
+      action_json           TEXT,                 -- the validated server-side action to run on approve
+      status                TEXT NOT NULL DEFAULT 'pending',  -- pending|approved|rejected|expired
+      decided_by            TEXT,
+      decided_via           TEXT,                 -- dashboard|phone|telegram|whatsapp|api
+      decided_at            TEXT,
+      reason                TEXT,
+      expires_at            TEXT,
+      decision_token_hash   TEXT,
+      notification_ids_json TEXT,
+      created_at            TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status, created_at);
+    -- append-only audit log of every sensitive action (phone command, approval decision, fleet change)
+    CREATE TABLE IF NOT EXISTS audit (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts          TEXT NOT NULL,
+      actor       TEXT,                 -- chat id / 'dashboard' / agent id
+      via         TEXT,                 -- dashboard|phone|telegram|api|system
+      action      TEXT NOT NULL,        -- e.g. approval.create / approval.decide / phone.command / fleet.pause
+      kind        TEXT,
+      approval_id TEXT,
+      issue       INTEGER,
+      detail      TEXT                  -- REDACTED JSON detail
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_id ON audit(id DESC);
   `);
   _db = d;
   return d;
@@ -179,4 +218,47 @@ export function setSetting(key: string, value: string): void {
       "INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
     )
     .run(key, value);
+}
+
+// ── audit log ──
+export interface AuditEntry {
+  ts: string;
+  actor: string | null;
+  via: string | null;
+  action: string;
+  kind: string | null;
+  approval_id: string | null;
+  issue: number | null;
+  detail: string | null;
+}
+/** Append one audit row. `detail` must already be redacted by the caller. */
+export function recordAudit(e: {
+  actor?: string | null;
+  via?: string | null;
+  action: string;
+  kind?: string | null;
+  approval_id?: string | null;
+  issue?: number | null;
+  detail?: string | null;
+}): void {
+  db()
+    .prepare(
+      `INSERT INTO audit (ts,actor,via,action,kind,approval_id,issue,detail) VALUES (?,?,?,?,?,?,?,?)`,
+    )
+    .run(
+      new Date().toISOString(),
+      e.actor ?? null,
+      e.via ?? null,
+      e.action,
+      e.kind ?? null,
+      e.approval_id ?? null,
+      e.issue ?? null,
+      e.detail ?? null,
+    );
+}
+export function listAudit(limit = 100): (AuditEntry & { id: number })[] {
+  const n = Math.min(500, Math.max(1, Math.trunc(limit)));
+  return db()
+    .prepare("SELECT * FROM audit ORDER BY id DESC LIMIT ?")
+    .all(n) as (AuditEntry & { id: number })[];
 }
