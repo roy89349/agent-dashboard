@@ -7,6 +7,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 NUM="${1:?usage: worker.sh <issue-number>}"
 TITLE="$(gh issue view "$NUM" --repo "$REPO" --json title -q .title)"
 BODY="$(gh issue view "$NUM" --repo "$REPO" --json body -q .body)"
+LABELS="$(gh issue view "$NUM" --repo "$REPO" --json labels -q '[.labels[].name]|join(",")' 2>/dev/null || true)"
 SLUG="$(printf '%s' "$TITLE" | tr 'A-Z' 'a-z' | tr -cs 'a-z0-9' '-' | sed 's/^-*//;s/-*$//' | cut -c1-40)"
 BRANCH="agent/issue-$NUM-$SLUG"
 WT="$FLEET_DIR/worktrees/issue-$NUM"
@@ -23,14 +24,15 @@ BEATER_PID=""
 # compose_beat: assemble the heartbeat (fresh beat_ts) and write it atomically. Only writer = the beater.
 compose_beat(){
   local ph; ph="$(cat "$PHASEF" 2>/dev/null)"
-  python3 - "$FLEET_SLOT" "$NUM" "$$" "${MODEL_SEL:-}" "$ph" "$TITLE" "$WORKER_START" "$(ts)" "${EFFORT_SEL:-}" "${DEPTH_SEL:-}" <<'PY' | atomic_write "$HB"
+  python3 - "$FLEET_SLOT" "$NUM" "$$" "${MODEL_SEL:-}" "$ph" "$TITLE" "$WORKER_START" "$(ts)" "${EFFORT_SEL:-}" "${DEPTH_SEL:-}" "${ROLE_SEL:-}" "${AGENT_ID_SEL:-}" "${AGENT_NAME_SEL:-}" <<'PY' | atomic_write "$HB"
 import json,sys
-slot,issue,pid,model,phase,title,started,beat,effort,depth=sys.argv[1:11]
+slot,issue,pid,model,phase,title,started,beat,effort,depth,role,agent_id,agent_name=sys.argv[1:14]
 def i(x):
     try: return int(x)
     except Exception: return None
 print(json.dumps({"slot":i(slot),"issue":i(issue),"pid":i(pid),"model":model or None,
-  "phase":phase or None,"title":title,"started_at":started,"beat_ts":beat,"effort":effort or None,"depth":depth or None},ensure_ascii=False))
+  "phase":phase or None,"title":title,"started_at":started,"beat_ts":beat,"effort":effort or None,"depth":depth or None,
+  "role":role or None,"agent_id":agent_id or None,"agent_name":agent_name or None},ensure_ascii=False))
 PY
 }
 # set_phase: foreground worker owns the phase file; ping the beater so the heartbeat updates immediately.
@@ -84,7 +86,15 @@ log "🎯 #$NUM: $TITLE"
 MODEL_SEL="$(route_model "$NUM" "$TITLE" "$BODY")"
 EFFORT_SEL="$(route_effort "$NUM")"
 DEPTH_SEL="$(route_depth "$NUM")"
-log "🧠 model: $MODEL_SEL · effort: $EFFORT_SEL · depth: $DEPTH_SEL"
+# Responsible role + its registry agent (display only — drives the who-does-what lanes/cards).
+# Empty when nothing routes (no label_scope match, no per-task role, no DEFAULT_ROLE) → old anonymous slot.
+ROLE_SEL="$(route_role "$NUM" "$LABELS" 2>/dev/null || true)"
+AGENT_ID_SEL=""; AGENT_NAME_SEL=""
+if [ -n "$ROLE_SEL" ]; then
+  AGENT_ID_SEL="$(role_field "$ROLE_SEL" id 2>/dev/null || true)"
+  AGENT_NAME_SEL="$(role_field "$ROLE_SEL" name 2>/dev/null || true)"
+fi
+log "🧠 model: $MODEL_SEL · effort: $EFFORT_SEL · depth: $DEPTH_SEL${ROLE_SEL:+ · role: $ROLE_SEL${AGENT_NAME_SEL:+ ($AGENT_NAME_SEL)}}"
 
 # Start the heartbeat beater: refreshes the heartbeat every HEARTBEAT_SEC (so a long
 # build is not falsely marked 'stale') + immediately on every phase change (USR1). Stops itself when

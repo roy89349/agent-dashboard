@@ -5,6 +5,9 @@ export type FleetState =
 
 export type ReviewVerdict = "approve" | "caution" | "reject" | "reviewed";
 
+/** Coarse risk for a card/lane — derived from a pending approval (or null when unknown). */
+export type RiskLevel = "high" | "medium" | "low" | "none";
+
 /** One row in Supabase `fleet_tasks` (live layer). */
 export interface FleetTask {
   issue: number;
@@ -78,6 +81,15 @@ export interface SlotStatus {
   phase_age_s: number | null;
   stale: boolean;
   log: string;
+  // ── who-does-what (all optional; old status.json without these still renders) ──
+  agent_id?: string | null; // registry agent slug responsible for this work
+  agent_name?: string | null; // display name (e.g. "Frontend-agent")
+  role?: string | null; // routed role (route_role: per-task > label_scope > default)
+  team_id?: string | null; // derived from role (lib/team.ts)
+  team_name?: string | null;
+  current_phase?: FleetState | null; // alias of `phase`, set in readStatus for clarity
+  risk_level?: RiskLevel | null; // from a pending approval for this issue, if any
+  awaiting_approval?: boolean; // a pending approval is blocking/waiting on this issue
 }
 
 /** Live state the supervisor mirrors to control/status.json every tick. */
@@ -131,6 +143,14 @@ export interface BoardCard {
   reviewVerdict: ReviewVerdict | null;
   error: string | null;
   updatedAt: string;
+  // ── who-does-what (optional; borrowed from the live slot / registry when available) ──
+  role?: string | null;
+  agentId?: string | null;
+  agentName?: string | null;
+  teamId?: string | null;
+  teamName?: string | null;
+  riskLevel?: RiskLevel | null;
+  awaitingApproval?: boolean;
 }
 
 /** Map labels + live state to a column. The GitHub label is authoritative. */

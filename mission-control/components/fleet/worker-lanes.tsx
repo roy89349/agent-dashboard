@@ -1,8 +1,11 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Clock, AlertTriangle, Skull, Ban, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
+import { AgentIdentity, RiskBadge, WaitingBadge } from "@/components/fleet/agent-meta";
+import { FilterBar } from "@/components/fleet/filter-bar";
+import { slotMeta, matches, facets, groupKey, type FilterState, type GroupDim } from "@/lib/agent-view";
 import { useFleet, fmtDur } from "./use-fleet";
 import type { SlotStatus, FleetState } from "@/lib/types";
 
@@ -16,11 +19,38 @@ const PHASE: Record<FleetState, { label: string; cls: string }> = {
   failed: { label: "Failed", cls: "bg-red-500 text-white" },
 };
 
+const GROUP_OPTIONS = [
+  { key: "none", label: "Flat" },
+  { key: "role", label: "Role" },
+  { key: "team", label: "Team" },
+  { key: "status", label: "Status" },
+];
+
 export function WorkerLanes() {
   const { status, command, loaded } = useFleet();
   const online = status?.online ?? false;
+  const [filters, setFilters] = useState<FilterState>({});
+  const [group, setGroup] = useState("none");
 
-  if (!status || status.slots.length === 0) {
+  const slots = useMemo(() => status?.slots ?? [], [status]);
+  const fac = useMemo(() => facets(slots.map(slotMeta)), [slots]);
+  const filtered = useMemo(() => slots.filter((s) => matches(slotMeta(s), filters)), [slots, filters]);
+
+  const groups = useMemo(() => {
+    if (group === "none") return [{ key: "all", label: "", slots: filtered }];
+    const dim = group as GroupDim;
+    const m = new Map<string, { label: string; slots: SlotStatus[] }>();
+    for (const s of filtered) {
+      const g = groupKey(slotMeta(s), dim);
+      if (!m.has(g.key)) m.set(g.key, { label: g.label, slots: [] });
+      m.get(g.key)!.slots.push(s);
+    }
+    return [...m.entries()]
+      .sort((a, b) => (a[0] === "_none" ? 1 : b[0] === "_none" ? -1 : a[1].label.localeCompare(b[1].label)))
+      .map(([key, v]) => ({ key, label: v.label, slots: v.slots }));
+  }, [filtered, group]);
+
+  if (!status || slots.length === 0) {
     return (
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-12 text-center">
         <Bot className="mx-auto size-8 text-white/20" />
@@ -33,10 +63,37 @@ export function WorkerLanes() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-      {status.slots.map((s) => (
-        <WorkerLane key={s.slot ?? s.issue} slot={s} onCmd={command} />
-      ))}
+    <div className="space-y-4">
+      <FilterBar
+        facets={fac}
+        filters={filters}
+        onFilter={setFilters}
+        group={group}
+        onGroup={setGroup}
+        groupOptions={GROUP_OPTIONS}
+      />
+      {filtered.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] py-10 text-center text-sm text-white/40">
+          No workers match this filter.
+        </p>
+      ) : (
+        groups.map((g) => (
+          <section key={g.key} className="space-y-3">
+            {g.label && (
+              <div className="flex items-center gap-2 px-0.5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40 capitalize">{g.label}</h3>
+                <span className="rounded-full bg-white/5 px-1.5 text-[11px] text-white/40">{g.slots.length}</span>
+                <span className="h-px flex-1 bg-white/10" />
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+              {g.slots.map((s) => (
+                <WorkerLane key={s.slot ?? s.issue} slot={s} onCmd={command} />
+              ))}
+            </div>
+          </section>
+        ))
+      )}
     </div>
   );
 }
@@ -45,8 +102,21 @@ function WorkerLane({ slot, onCmd }: { slot: SlotStatus; onCmd: (cmd: string, is
   const [showLog, setShowLog] = useState(true);
   const confirm = useConfirm();
   const ph = slot.phase ? PHASE[slot.phase] : null;
+  const waiting = !!slot.awaiting_approval;
   return (
-    <article className={`rounded-2xl border p-3 ${slot.stale ? "border-amber-500/50 bg-amber-500/[0.04]" : "border-white/10 bg-white/[0.03]"}`}>
+    <article
+      className={`rounded-2xl border p-3 ${
+        waiting ? "border-amber-500/50 bg-amber-500/[0.05]" : slot.stale ? "border-amber-500/50 bg-amber-500/[0.04]" : "border-white/10 bg-white/[0.03]"
+      }`}
+    >
+      {/* identity: agent · role · team */}
+      {(slot.role || slot.agent_name) && (
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <AgentIdentity role={slot.role} agentName={slot.agent_name} teamId={slot.team_id} teamName={slot.team_name} />
+          <RiskBadge level={slot.risk_level} />
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-white" title={slot.title ?? ""}>
@@ -65,7 +135,8 @@ function WorkerLane({ slot, onCmd }: { slot: SlotStatus; onCmd: (cmd: string, is
             <span className="inline-flex items-center gap-1 text-white/40">
               <Clock className="size-3" /> {fmtDur(slot.elapsed_s)}
             </span>
-            {slot.stale && (
+            {waiting && <WaitingBadge />}
+            {slot.stale && !waiting && (
               <span className="inline-flex items-center gap-1 text-amber-400">
                 <AlertTriangle className="size-3" /> stalled
               </span>

@@ -2,6 +2,7 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { teamForRole } from "./team";
 import type {
   FleetDesired,
   FleetStatus,
@@ -124,7 +125,18 @@ export function readStatus(): FleetStatus | null {
     const age = Date.now() - new Date(st.heartbeat).getTime();
     if (!(age < 5 * 60 * 1000)) online = false; // > 5 min old → dead after all
   }
-  return { ...st, online };
+  // Enrich slots with the derived team + a current_phase alias (role/agent come from the heartbeat).
+  // Old status.json without role → team stays null and the UI just renders the slot as before.
+  const slots = (st.slots ?? []).map((s) => {
+    const team = teamForRole(s.role);
+    return {
+      ...s,
+      current_phase: s.current_phase ?? s.phase ?? null,
+      team_id: s.team_id ?? team?.id ?? null,
+      team_name: s.team_name ?? team?.name ?? null,
+    };
+  });
+  return { ...st, slots, online };
 }
 
 // ── lock (exclusive, with bounded retry + stale-break) ──

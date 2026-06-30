@@ -257,7 +257,8 @@ for r in rows:
     slots.append({"slot":I(slot),"pid":I(pid),"issue":I(issue),
         "title":d.get('title'),"model":d.get('model'),"effort":d.get('effort'),"depth":d.get('depth'),"phase":phase,
         "started_at":d.get('started_at'),"elapsed_s":elapsed,"phase_age_s":page,
-        "stale":stale,"log":"/api/fleet/log?issue=%s"%issue})
+        "stale":stale,"log":"/api/fleet/log?issue=%s"%issue,
+        "role":d.get('role'),"agent_id":d.get('agent_id'),"agent_name":d.get('agent_name')})
 fb=int(env('ST_FB','0') or 0); cf=int(env('ST_CF','0') or 0)
 out={"schema":1,"supervisor_pid":I(env('ST_SUPPID')),"heartbeat":env('ST_HBNOW'),
   "mode":env('ST_MODE'),"claiming":env('ST_CLAIMING')=='1',

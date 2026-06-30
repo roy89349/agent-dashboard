@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ExternalLink, GitMerge, Bot, AlertTriangle, ArrowUp, RotateCcw, X, MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
+import { AgentIdentity, RiskBadge, WaitingBadge } from "@/components/fleet/agent-meta";
 import type { BoardCard, FleetState, ReviewVerdict } from "@/lib/types";
 
 const STATE_LABEL: Record<FleetState, string> = {
@@ -124,6 +125,13 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
         </a>
       </div>
 
+      {/* who-does-what (renders nothing when unassigned) */}
+      {(card.role || card.agentName) && (
+        <div className="mt-2">
+          <AgentIdentity role={card.role} agentName={card.agentName} teamId={card.teamId} teamName={card.teamName} />
+        </div>
+      )}
+
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
         <span className={pill}>#{card.issue}</span>
         {card.model && (
@@ -138,6 +146,8 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
             {VERDICT[card.reviewVerdict].label}
           </span>
         )}
+        <RiskBadge level={card.riskLevel} />
+        {card.awaitingApproval && <WaitingBadge />}
       </div>
 
       {failed && card.error && (
