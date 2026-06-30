@@ -21,6 +21,7 @@ export async function GET() {
     hasVault: !!process.env.VAULT_DIR?.trim(),
     githubTokenSet: !!process.env.GITHUB_TOKEN?.trim() && process.env.GITHUB_TOKEN !== "replace-me",
     allowGlobalOpus: (process.env.ALLOW_GLOBAL_OPUS ?? "0") === "1",
+    allowAutoMerge: (process.env.ALLOW_AUTO_MERGE ?? "0") === "1",
     hardMaxWorkers: n("HARD_MAX_WORKERS", 8),
     hardMaxPrPerDay: n("HARD_MAX_PR_PER_DAY", 50),
     maxAttemptsPerDay: n("MAX_ATTEMPTS_PER_DAY", 40),

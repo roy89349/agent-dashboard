@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "rules": [
+    {
+      "project_type": "saas_webapp",
+      "label": "SaaS web app",
+      "lead_role": "manager",
+      "roles": ["manager", "architect", "frontend", "backend", "qa", "devops", "security"],
+      "edges": [
+        { "from_role": "architect", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "frontend", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "backend", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "qa", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "devops", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "qa", "to_role": "frontend", "kind": "reviews" },
+        { "from_role": "qa", "to_role": "backend", "kind": "reviews" },
+        { "from_role": "security", "to_role": "backend", "kind": "reviews" },
+        { "from_role": "architect", "to_role": "backend", "kind": "asks" }
+      ],
+      "default_labels": ["agent-ready"],
+      "approval_policy": { "mode": "manual", "auto_approve_max_risk": null, "blocking_roles": ["security"], "required_reviews": 1, "auto_merge": false },
+      "budget_caps": { "daily_token_budget": null, "max_concurrency": 2, "max_pr_per_day": 5 }
+    },
+    {
+      "project_type": "mobile_app",
+      "label": "Mobile app",
+      "lead_role": "manager",
+      "roles": ["manager", "designer", "frontend", "backend", "qa"],
+      "edges": [
+        { "from_role": "designer", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "frontend", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "backend", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "qa", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "designer", "to_role": "frontend", "kind": "hands_off_to" },
+        { "from_role": "qa", "to_role": "frontend", "kind": "reviews" }
+      ],
+      "default_labels": ["agent-ready"],
+      "approval_policy": { "mode": "manual", "auto_approve_max_risk": null, "blocking_roles": ["qa"], "required_reviews": 1, "auto_merge": false },
+      "budget_caps": { "daily_token_budget": null, "max_concurrency": 2, "max_pr_per_day": 4 }
+    },
+    {
+      "project_type": "excel_automation",
+      "label": "Excel / data automation",
+      "lead_role": "manager",
+      "roles": ["manager", "data", "backend", "qa", "documentation"],
+      "edges": [
+        { "from_role": "data", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "backend", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "qa", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "documentation", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "qa", "to_role": "data", "kind": "reviews" },
+        { "from_role": "documentation", "to_role": "data", "kind": "asks" }
+      ],
+      "default_labels": ["agent-ready"],
+      "approval_policy": { "mode": "manual", "auto_approve_max_risk": null, "blocking_roles": ["qa"], "required_reviews": 1, "auto_merge": false },
+      "budget_caps": { "daily_token_budget": null, "max_concurrency": 1, "max_pr_per_day": 3 }
+    },
+    {
+      "project_type": "security_audit",
+      "label": "Security audit",
+      "lead_role": "manager",
+      "roles": ["manager", "security", "backend", "qa"],
+      "edges": [
+        { "from_role": "security", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "backend", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "qa", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "security", "to_role": "backend", "kind": "reviews" }
+      ],
+      "default_labels": ["agent-ready", "security"],
+      "approval_policy": { "mode": "manual", "auto_approve_max_risk": null, "blocking_roles": ["security"], "required_reviews": 2, "auto_merge": false },
+      "budget_caps": { "daily_token_budget": null, "max_concurrency": 1, "max_pr_per_day": 2 },
+      "member_autonomy_hint": "suggest"
+    },
+    {
+      "project_type": "ui_redesign",
+      "label": "UI redesign",
+      "lead_role": "manager",
+      "roles": ["manager", "designer", "frontend", "qa", "communication"],
+      "edges": [
+        { "from_role": "designer", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "frontend", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "qa", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "communication", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "designer", "to_role": "frontend", "kind": "hands_off_to" },
+        { "from_role": "qa", "to_role": "frontend", "kind": "reviews" }
+      ],
+      "default_labels": ["agent-ready"],
+      "approval_policy": { "mode": "manual", "auto_approve_max_risk": null, "blocking_roles": [], "required_reviews": 1, "auto_merge": false },
+      "budget_caps": { "daily_token_budget": null, "max_concurrency": 2, "max_pr_per_day": 4 }
+    },
+    {
+      "project_type": "bugfix_sprint",
+      "label": "Bugfix sprint",
+      "lead_role": "manager",
+      "roles": ["manager", "backend", "frontend", "qa"],
+      "edges": [
+        { "from_role": "backend", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "frontend", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "qa", "to_role": "manager", "kind": "reports_to" },
+        { "from_role": "qa", "to_role": "backend", "kind": "reviews" },
+        { "from_role": "qa", "to_role": "frontend", "kind": "reviews" }
+      ],
+      "default_labels": ["agent-ready", "bug"],
+      "approval_policy": { "mode": "manual", "auto_approve_max_risk": null, "blocking_roles": ["qa"], "required_reviews": 1, "auto_merge": false },
+      "budget_caps": { "daily_token_budget": null, "max_concurrency": 3, "max_pr_per_day": 8 }
+    }
+  ]
+}

@@ -181,6 +181,12 @@ export function deriveColumn(
 
 export type AgentModel = "haiku" | "sonnet" | "opus";
 
+/** How much the agent may do on its own. DEFAULT "review" == today's issue→agent→PR behaviour.
+ *  "full" (self-merge) is DANGEROUS and server-gated by ALLOW_AUTO_MERGE (like opus / ALLOW_GLOBAL_OPUS).
+ *  v1 = a stored preference; no run-time consumer self-merges yet (a future consumer must re-check the gate). */
+export type Autonomy = "suggest" | "review" | "auto" | "full";
+export const AUTONOMY_LEVELS: Autonomy[] = ["suggest", "review", "auto", "full"];
+
 /** Role is an OPEN string by design — the team is config-driven, never a hardcoded enum.
  *  Conventional default roles: manager · frontend · backend · qa · security · devops ·
  *  documentation · kpi · communication · data · designer · architect. */
@@ -195,6 +201,7 @@ export interface Agent {
   model_default: AgentModel; // opus only honoured when ALLOW_GLOBAL_OPUS=1 (write-gated + downstream)
   effort_default: Effort;
   depth_default: Depth;
+  autonomy: Autonomy; // "review" (default) = opens a PR for human approval; "full" gated by ALLOW_AUTO_MERGE
   system_prompt_ref: string; // path to a prompt template file (NOT an inline prompt)
   allowed_tools: string[]; // e.g. ["Read","Grep","Glob","Edit","Write","Bash"]
   green_cmd: string | null; // per-role override of GREEN_CMD; null = use the global one
@@ -215,4 +222,108 @@ export interface AgentsFile {
   rev: number;
   updated_at: string | null;
   agents: Agent[];
+}
+
+// ── user-defined TEAMS (control/teams.json) — a visual overlay over the agent registry ──────────────
+// Additive + INERT: nothing in the issue→agent→PR flow reads teams.json. It references agents only by id,
+// adds an org-chart (edges), routing rules, an approval policy and budget caps — all validated SERVER-SIDE
+// (lib/teams.ts). Reads never throw; missing agents render as "ghost" nodes. Distinct from lib/team.ts
+// (the coarse Build/Platform/Command presentation grouping derived from a role).
+
+export type EdgeKind = "reports_to" | "reviews" | "hands_off_to" | "asks";
+export const EDGE_KINDS: EdgeKind[] = ["reports_to", "reviews", "hands_off_to", "asks"];
+
+export type ProjectType =
+  | "saas_webapp" | "mobile_app" | "excel_automation"
+  | "security_audit" | "ui_redesign" | "bugfix_sprint";
+export const PROJECT_TYPES: ProjectType[] = [
+  "saas_webapp", "mobile_app", "excel_automation", "security_audit", "ui_redesign", "bugfix_sprint",
+];
+
+/** One directed connection on the org-chart. from/to are AGENT IDs that must be team members. */
+export interface TeamEdge {
+  from: string;
+  to: string;
+  kind: EdgeKind;
+}
+
+export type ApprovalMode = "manual" | "auto_below_risk" | "auto"; // "auto" gated by ALLOW_AUTO_MERGE
+
+export interface ApprovalPolicy {
+  mode: ApprovalMode; // "manual" (DEFAULT) = every PR needs a human
+  auto_approve_max_risk: "low" | "medium" | null; // only meaningful when mode === "auto_below_risk"
+  blocking_roles: string[]; // roles whose reject hard-blocks (filtered to roles present among members)
+  required_reviews: number; // approvals before merge; forced ≥1 when mode !== "manual"
+  auto_merge: boolean; // DANGEROUS self-merge — rejected unless ALLOW_AUTO_MERGE=1
+}
+
+export interface BudgetCaps {
+  daily_token_budget: number | null; // team pool; null = inherit
+  max_concurrency: number | null; // null = inherit; clamped 1..HARD_MAX_WORKERS
+  max_pr_per_day: number | null; // null = inherit; clamped 0..HARD_MAX_PR_PER_DAY
+  per_agent: Record<string, { daily_token_budget?: number | null }>; // overrides may only LOWER an agent's value
+}
+
+export interface RoutingRule {
+  id: string; // slug, unique within the team
+  enabled: boolean;
+  priority: number; // lower evaluated first; clamp 0..999
+  match: { labels: string[]; path_globs: string[]; repos: string[] }; // empty clause = match-all
+  assign_to: string; // member agent id OR a role string (resolved via agentByRole)
+  fallback_to: string | null; // used when assign_to is disabled/absent
+}
+
+export interface Team {
+  id: string; // slug — same regex as Agent.id
+  name: string;
+  description: string;
+  enabled: boolean;
+  is_template: boolean; // "Save as template" → true; excluded from active routing
+  lead: string | null; // agent id; must be in members (the Manager on top)
+  members: string[]; // agent ids (includes lead); de-duped; each must exist in the registry
+  project_scope: { repos: string[]; paths: string[] }; // "owner/repo" + path globs (path-traversal-safe)
+  labels: string[]; // issue labels this team claims
+  edges: TeamEdge[]; // org-chart connections (from/to are members)
+  routing_rules: RoutingRule[];
+  approval_policy: ApprovalPolicy;
+  budget_caps: BudgetCaps;
+  layout: Record<string, { x: number; y: number }>; // persisted canvas coords; empty = auto-layout
+  source_project_type: ProjectType | null; // provenance when built via the rule engine
+  created_at: string;
+  updated_at: string;
+}
+
+/** Partial as the UI submits it (id required, rest merged over the existing record then defaulted). */
+export type TeamInput = Partial<Team> & { id: string };
+
+/** control/teams.json — CAS-guarded by rev, identical envelope to AgentsFile. */
+export interface TeamsFile {
+  schema: number;
+  rev: number;
+  updated_at: string | null;
+  teams: Team[];
+}
+
+/** Patch verbs mirror AgentsPatch. upsert = MERGE over the existing record (partial-safe). */
+export interface TeamsPatch {
+  upsert?: TeamInput; // create/update one team by id (merge)
+  remove?: string; // remove one team by id
+  teams?: TeamInput[]; // replace the whole list — requires confirm:true
+}
+
+// ── recommended-team rule engine (deploy/team-rules.default.json → control/team-rules.json) ──
+export interface TeamRule {
+  project_type: ProjectType;
+  label: string;
+  lead_role: string; // resolved to an enabled agent via agentByRole
+  roles: string[]; // ordered; each resolved to an enabled agent (else listed in missingRoles)
+  edges: { from_role: string; to_role: string; kind: EdgeKind }[];
+  default_labels: string[];
+  approval_policy: ApprovalPolicy;
+  budget_caps: Omit<BudgetCaps, "per_agent">;
+  member_autonomy_hint?: Autonomy; // UI hint (still gated server-side)
+}
+export interface TeamRulesFile {
+  schema: number;
+  rules: TeamRule[];
 }

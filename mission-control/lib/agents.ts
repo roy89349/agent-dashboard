@@ -9,11 +9,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import type { Agent, AgentInput, AgentsFile, AgentModel, Effort, Depth } from "./types";
+import type { Agent, AgentInput, AgentsFile, AgentModel, Effort, Depth, Autonomy } from "./types";
 
 const MODELS = ["haiku", "sonnet", "opus"];
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 const DEPTHS = ["solo", "orchestrate"];
+const AUTONOMY = ["suggest", "review", "auto", "full"];
 
 // ── paths (same resolution as fleet.ts) ──
 function fleetDir(): string {
@@ -30,6 +31,7 @@ const F_DEFAULTS = () =>
 
 // ── server-side gates (mirror of config.env) ──
 const ALLOW_GLOBAL_OPUS = () => (process.env.ALLOW_GLOBAL_OPUS ?? "0") === "1";
+const ALLOW_AUTO_MERGE = () => (process.env.ALLOW_AUTO_MERGE ?? "0") === "1";
 const HARD_MAX_CONCURRENCY = () => {
   const v = parseInt(process.env.HARD_MAX_WORKERS ?? "", 10);
   return Number.isFinite(v) ? v : 8;
@@ -89,6 +91,7 @@ export function normalizeAgent(input: AgentInput): Agent {
     model_default: model,
     effort_default: effort,
     depth_default: depth,
+    autonomy: (AUTONOMY.includes(input.autonomy as string) ? input.autonomy : "review") as Autonomy,
     system_prompt_ref:
       typeof input.system_prompt_ref === "string" ? input.system_prompt_ref.slice(0, 256) : "",
     allowed_tools: strArr(input.allowed_tools),
@@ -110,9 +113,16 @@ export function normalizeAgent(input: AgentInput): Agent {
 function emptyFile(): AgentsFile {
   return { schema: 1, rev: 0, updated_at: null, agents: [] };
 }
+function safeNormalizeAgent(a: AgentInput): Agent | null {
+  try {
+    return normalizeAgent(a);
+  } catch {
+    return null; // one corrupt agent is dropped; the rest (and the rev) survive
+  }
+}
 function coerceFile(d: unknown): AgentsFile {
   const o = (d ?? {}) as Partial<AgentsFile>;
-  const agents = Array.isArray(o.agents) ? (o.agents as AgentInput[]).map(normalizeAgent) : [];
+  const agents = Array.isArray(o.agents) ? (o.agents as AgentInput[]).map(safeNormalizeAgent).filter((a): a is Agent => !!a) : [];
   return {
     schema: 1,
     rev: typeof o.rev === "number" && o.rev >= 0 ? Math.trunc(o.rev) : 0,
@@ -186,9 +196,11 @@ export interface AgentsPatch {
  *  Opus write-gate: model_default 'opus' is rejected (403) unless ALLOW_GLOBAL_OPUS=1 — exactly like
  *  the fleet.ts knob, applied to every agent that this patch creates or replaces. */
 export function sanitizeAgentPatch(patch: AgentsPatch, current: AgentsFile): Agent[] {
-  const gateOpus = (a: Agent): Agent => {
+  const gate = (a: Agent): Agent => {
     if (a.model_default === "opus" && !ALLOW_GLOBAL_OPUS())
       throw new HttpError(403, `agent ${a.id}: model_default 'opus' is disabled (ALLOW_GLOBAL_OPUS)`);
+    if (a.autonomy === "full" && !ALLOW_AUTO_MERGE())
+      throw new HttpError(403, `agent ${a.id}: autonomy 'full' (self-merge) is disabled (ALLOW_AUTO_MERGE)`);
     return a;
   };
   let list = current.agents.slice();
@@ -196,7 +208,7 @@ export function sanitizeAgentPatch(patch: AgentsPatch, current: AgentsFile): Age
     if (!Array.isArray(patch.agents)) throw new HttpError(400, "agents must be a list");
     const seen = new Set<string>();
     list = patch.agents.map((a) => {
-      const n = gateOpus(normalizeAgent(a));
+      const n = gate(normalizeAgent(a));
       if (seen.has(n.id)) throw new HttpError(400, `duplicate agent id: ${n.id}`);
       seen.add(n.id);
       return n;
@@ -204,8 +216,12 @@ export function sanitizeAgentPatch(patch: AgentsPatch, current: AgentsFile): Age
     if (list.length > 200) throw new HttpError(400, "too many agents (max 200)");
   }
   if (patch.upsert !== undefined) {
-    const n = gateOpus(normalizeAgent(patch.upsert));
-    const i = list.findIndex((a) => a.id === n.id);
+    if (typeof patch.upsert.id !== "string") throw new HttpError(400, "upsert.id required");
+    const i = list.findIndex((a) => a.id === patch.upsert!.id);
+    // MERGE over the existing record so a partial upsert ({id, enabled} / {id, autonomy}) only changes
+    // the named fields instead of resetting the agent to defaults. New id → normalize from defaults.
+    const merged = (i >= 0 ? { ...list[i], ...patch.upsert } : patch.upsert) as AgentInput;
+    const n = gate(normalizeAgent(merged));
     if (i >= 0) list[i] = n;
     else list.push(n);
     if (list.length > 200) throw new HttpError(400, "too many agents (max 200)");

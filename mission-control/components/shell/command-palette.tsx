@@ -16,6 +16,7 @@ import {
   Inbox,
   Users,
   Radio,
+  Network,
 } from "lucide-react";
 
 type Item = {
@@ -64,6 +65,7 @@ export function CommandPalette({
       { group: "Navigation", label: "Decision Inbox", hint: "pending approvals", icon: Inbox, run: go("/approvals") },
       { group: "Navigation", label: "War Room", hint: "live who's doing what", icon: Radio, run: go("/workers") },
       { group: "Navigation", label: "Agents", hint: "the team", icon: Users, run: go("/agents") },
+      { group: "Navigation", label: "Team Composer", hint: "compose your AI team", icon: Network, run: go("/team-composer") },
       { group: "Navigation", label: "Conversations", icon: MessagesSquare, run: go("/chats") },
       { group: "Navigation", label: "Knowledge", hint: "Obsidian vault", icon: BookOpen, run: go("/kennis") },
       { group: "Navigation", label: "Config", icon: Settings, run: go("/config") },
