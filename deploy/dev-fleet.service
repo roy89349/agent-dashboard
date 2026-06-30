@@ -12,6 +12,7 @@ ExecStart=/home/fleet/agent-dashboard/loop.sh
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/fleet/.local/bin
 # Config comes from config.env + config.local.env (sourced by lib.sh). Start conservatively:
 Environment=MAX_WORKERS=1
+Environment=XDG_RUNTIME_DIR=/run/user/1000
 Restart=always
 RestartSec=5
 

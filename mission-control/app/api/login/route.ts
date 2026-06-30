@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   res.cookies.set("mc_session", token, {
     httpOnly: true,
     // Safari rejects a Secure cookie over http://localhost; only enforce it in production (https).
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.MC_SECURE_COOKIE === "true",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 14,

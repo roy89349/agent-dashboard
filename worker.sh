@@ -105,10 +105,10 @@ git -C "$REPO_DIR" fetch -q origin main || fail "git fetch failed"
 # the live view disappears + orphan adoption fails → double-claim). Full cleanup() stays
 # exclusively on the terminal paths (fail/on_signal/end-of-run).
 git -C "$REPO_DIR" worktree remove --force "$WT" 2>/dev/null || true
-git -C "$REPO_DIR" push origin --delete "$BRANCH" >/dev/null 2>&1 || true   # clean up stale branch without PR
+git -C "$REPO_DIR" push origin --delete "$BRANCH" >/dev/null 2>&1 || true   # clean up stale remote branch without PR
+git -C "$REPO_DIR" branch -D "$BRANCH" >/dev/null 2>&1 || true              # drop stale LOCAL branch (retry-safe, e.g. after a re-labelled fail)
 git -C "$REPO_DIR" worktree add -q -b "$BRANCH" "$WT" origin/main || fail "worktree add failed"
-log "📦 npm install…"
-( cd "$WT" && npm install --prefer-offline --no-audit --no-fund ) >>"$AGENT_LOG" 2>&1 || fail "npm install failed"
+# npm install now runs INSIDE the sandbox (see deploy/sandbox/run-build.sh) — no host-side repo install.
 
 ADDDIR=()
 VAULT_NOTE=""
@@ -140,14 +140,21 @@ RULES:
 - Do NOT touch secrets/.env files/deploy config/.github/workflows, or anything outside this task's scope.$VAULT_NOTE$ORCH_NOTE
 - End with a 1-3 sentence summary of what you changed."
 
-log "🛠  building (model=$MODEL_SEL, max-turns=$MAX_TURNS)…"
-( cd "$WT" && claude -p "$PROMPT" --model "$MODEL_SEL" --effort "$EFFORT_SEL" ${ADDDIR[@]+"${ADDDIR[@]}"} --dangerously-skip-permissions --max-turns "$TURNS" ) \
-  >"$AGENT_LOG" 2>&1 || log "claude exit≠0 (the gates decide from here)"
-
-if [ -n "$(git -C "$WT" status --porcelain -- package.json package-lock.json 2>/dev/null)" ]; then
-  log "📦 deps changed → reinstalling"
-  ( cd "$WT" && npm install --no-audit --no-fund --prefer-offline ) >>"$AGENT_LOG" 2>&1 || fail "npm install (deps) failed"
-fi
+log "🛠  building in sandbox (model=$MODEL_SEL, effort=$EFFORT_SEL, max-turns=$TURNS)…"
+# Install + agent + green-gate run INSIDE a rootless Podman sandbox: only the worktree is mounted,
+# NO host secrets (gh token / ~/.claude / config) reach the injectable agent, and it runs non-root.
+# git push + PR stay OUTSIDE in this orchestrator (credential broker). See deploy/sandbox/.
+PROMPT_FILE="$FLEET_DIR/logs/issue-$NUM.prompt.txt"
+printf '%s' "$PROMPT" > "$PROMPT_FILE"
+GREEN_CMD="$GREEN_CMD" "$FLEET_DIR/deploy/sandbox/run-build.sh" "$WT" "$MODEL_SEL" "$EFFORT_SEL" "$TURNS" "$PROMPT_FILE" >"$AGENT_LOG" 2>&1
+SANDBOX_RC=$?
+rm -f "$PROMPT_FILE"
+case "$SANDBOX_RC" in
+  0) : ;;
+  21|22) fail "sandbox dependency install failed — $(tail -n 2 "$AGENT_LOG" | tr '\n' ' ')" ;;
+  23) fail "green-gate failed — $(tail -n 2 "$AGENT_LOG" | tr '\n' ' ')" ;;
+  *)  fail "sandbox infrastructure error (rc=$SANDBOX_RC) — $(tail -n 2 "$AGENT_LOG" | tr '\n' ' ')" ;;
+esac
 
 # stage everything, then run the gates
 git -C "$WT" add -A
@@ -161,10 +168,9 @@ if git -C "$WT" diff --cached | grep -qE "$SECRET_RE"; then
   fail "diff contains a possible secret — rejected"
 fi
 
-# ── GREEN-GATE ──
+# ── GREEN-GATE already ran inside the sandbox (exit code checked above) ──
 emit "$NUM" gating '{}'; set_phase gating
-log "🚦 green-gate: $GREEN_CMD"
-( cd "$WT" && eval "$GREEN_CMD" ) >"$GATE_LOG" 2>&1 || fail "green-gate failed — $(tail -n 2 "$GATE_LOG" | tr '\n' ' ')"
+log "🚦 green-gate passed in sandbox: $GREEN_CMD"
 
 # ── COMMIT + PUSH + PR ──
 GIT_EMAIL_USE="${GIT_EMAIL:-}"; [ -n "$GIT_EMAIL_USE" ] || GIT_EMAIL_USE="$(git -C "$REPO_DIR" config user.email 2>/dev/null)"
