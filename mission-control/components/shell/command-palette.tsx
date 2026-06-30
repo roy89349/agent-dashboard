@@ -14,6 +14,7 @@ import {
   Square,
   Search,
   CornerDownLeft,
+  Inbox,
 } from "lucide-react";
 
 type Item = {
@@ -59,6 +60,7 @@ export function CommandPalette({
     };
     return [
       { group: "Navigation", label: "Dashboard", icon: LayoutDashboard, run: go("/") },
+      { group: "Navigation", label: "Decision Inbox", hint: "pending approvals", icon: Inbox, run: go("/approvals") },
       { group: "Navigation", label: "Workers", hint: "live who's doing what", icon: Cpu, run: go("/workers") },
       { group: "Navigation", label: "Conversations", icon: MessagesSquare, run: go("/chats") },
       { group: "Navigation", label: "Knowledge", hint: "Obsidian vault", icon: BookOpen, run: go("/kennis") },

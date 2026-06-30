@@ -10,6 +10,7 @@ import {
   Settings,
   Command as CommandIcon,
   Radio,
+  Inbox,
 } from "lucide-react";
 import { CommandPalette } from "./command-palette";
 import { NewTaskDialog } from "@/components/new-task-dialog";
@@ -17,6 +18,7 @@ import type { FleetStatus } from "@/lib/types";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/approvals", label: "Decisions", icon: Inbox },
   { href: "/workers", label: "Workers", icon: Cpu },
   { href: "/chats", label: "Conversations", icon: MessagesSquare },
   { href: "/kennis", label: "Knowledge", icon: BookOpen },
@@ -25,6 +27,7 @@ const NAV = [
 
 const TITLES: Record<string, string> = {
   "/": "Dashboard",
+  "/approvals": "Decision Inbox",
   "/workers": "Workers",
   "/chats": "Conversations",
   "/kennis": "Knowledge",
@@ -35,6 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [status, setStatus] = useState<FleetStatus | null>(null);
+  const [pending, setPending] = useState(0);
 
   // ⌘K / Ctrl-K → command palette
   useEffect(() => {
@@ -66,6 +70,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearInterval(id);
     };
   }, []);
+
+  // pending-approval count for the Decisions nav badge
+  useEffect(() => {
+    let alive = true;
+    async function poll() {
+      try {
+        const r = await fetch("/api/approvals?status=pending", { cache: "no-store" });
+        if (r.ok && alive) setPending(((await r.json()).approvals ?? []).length);
+      } catch {
+        /* offline */
+      }
+    }
+    poll();
+    const id = setInterval(poll, 8000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [pathname]);
 
   const online = status?.online ?? false;
   const title = TITLES[pathname] ?? "Mission Control";
@@ -99,6 +122,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {active && <span className="absolute left-0 h-5 w-0.5 rounded-r bg-emerald-400" />}
                 <Icon className="size-4" />
                 {n.label}
+                {n.href === "/approvals" && pending > 0 && (
+                  <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-amber-500/90 px-1.5 text-[10px] font-semibold tabular-nums text-black">
+                    {pending}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -133,6 +161,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] text-amber-300">
               {status.pause_reason}
             </span>
+          )}
+          {pending > 0 && pathname !== "/approvals" && (
+            <Link
+              href="/approvals"
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-medium text-amber-300 hover:bg-amber-500/25"
+            >
+              <Inbox className="size-3" /> {pending} waiting
+            </Link>
           )}
           <div className="ml-auto flex items-center gap-2">
             <button

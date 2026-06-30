@@ -55,6 +55,11 @@ export async function runApprovalAction(a: Approval): Promise<{ ok: boolean; det
         appendCommand({ cmd: "cancel", issue: Number(action.issue) });
         return { ok: true, detail: `cancel #${action.issue}` };
       }
+      case "noop":
+      case "ack":
+        // sign-off style approvals (plan_signoff, prompt_confirm) — the decision IS the outcome,
+        // there is no automated follow-up action to run.
+        return { ok: true, detail: "acknowledged" };
       default:
         return { ok: false, detail: `unknown action type: ${action.type ?? "(none)"}` };
     }

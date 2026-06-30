@@ -262,3 +262,10 @@ export function listAudit(limit = 100): (AuditEntry & { id: number })[] {
     .prepare("SELECT * FROM audit ORDER BY id DESC LIMIT ?")
     .all(n) as (AuditEntry & { id: number })[];
 }
+/** Audit trail for ONE approval (oldest → newest, so the timeline reads top-to-bottom). */
+export function listAuditForApproval(approvalId: string, limit = 50): (AuditEntry & { id: number })[] {
+  const n = Math.min(200, Math.max(1, Math.trunc(limit)));
+  return db()
+    .prepare("SELECT * FROM audit WHERE approval_id = ? ORDER BY id ASC LIMIT ?")
+    .all(String(approvalId), n) as (AuditEntry & { id: number })[];
+}
