@@ -1,6 +1,7 @@
 "use client";
 import { Play, Pause, Square, Minus, Plus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 import { useFleet } from "./use-fleet";
 
 const PAUSE_LABEL: Record<string, string> = {
@@ -13,6 +14,7 @@ const PAUSE_LABEL: Record<string, string> = {
 
 export function ControlBar() {
   const { status, desired, busy, patch, command } = useFleet();
+  const confirm = useConfirm();
   // Knob settings: show the supervisor-EFFECTIVE values when the fleet is running (clamped),
   // otherwise the CONFIGURED state (fleet.json) — this way +/- stays visible even when the fleet is offline.
   const k =
@@ -63,8 +65,8 @@ export function ControlBar() {
             <Pause className="size-3.5" /> Pause
           </Button>
           <Button size="sm" variant={mode === "stopped" ? "destructive" : "secondary"} disabled={busy}
-            onClick={() => {
-              if (confirm("Stop the fleet? Running workers will be aborted (tasks remain resumable)."))
+            onClick={async () => {
+              if (await confirm({ title: "Stop the fleet?", body: "Running workers will be aborted. Tasks remain resumable.", tone: "danger", confirmLabel: "Stop fleet" }))
                 patch({ mode: "stopped" }, true);
             }}>
             <Square className="size-3.5" /> Stop
@@ -81,18 +83,18 @@ export function ControlBar() {
         <Stepper label="Breaker" value={k?.fail_break ?? null} busy={busy}
           onDelta={(d) => patch({ fail_break: Math.max(1, (k?.fail_break ?? 1) + d) }, true)} />
         <Select label="Model" value={k?.router ?? "auto"} options={["auto", "sonnet", "opus"]} busy={busy}
-          onChange={(v) => {
-            if (v === "opus" && !confirm("Forcing opus globally can be expensive. Continue?")) return;
+          onChange={async (v) => {
+            if (v === "opus" && !(await confirm({ title: "Force Opus globally?", body: "Opus on every task can get expensive.", confirmLabel: "Use Opus" }))) return;
             patch({ router: v }, true);
           }} />
         <Select label="Effort" value={k?.effort ?? "medium"} options={["low", "medium", "high", "xhigh", "max"]} busy={busy}
-          onChange={(v) => {
-            if ((v === "xhigh" || v === "max") && !confirm("High effort costs more tokens. Continue?")) return;
+          onChange={async (v) => {
+            if ((v === "xhigh" || v === "max") && !(await confirm({ title: "High reasoning effort?", body: "Higher effort costs more tokens per task.", confirmLabel: "Continue" }))) return;
             patch({ effort: v }, true);
           }} />
         <Select label="Depth" value={k?.depth ?? "solo"} options={["solo", "orchestrate"]} busy={busy}
-          onChange={(v) => {
-            if (v === "orchestrate" && !confirm("Orchestrate fans the agent out into sub-agents — deeper, but more tokens. Continue?")) return;
+          onChange={async (v) => {
+            if (v === "orchestrate" && !(await confirm({ title: "Orchestrate mode?", body: "Fans each agent out into sub-agents — deeper, but more tokens.", confirmLabel: "Orchestrate" }))) return;
             patch({ depth: v }, true);
           }} />
         <Select label="Review" value={k?.review ?? "on"} options={["on", "off"]} busy={busy}

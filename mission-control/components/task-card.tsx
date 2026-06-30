@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ExternalLink, GitMerge, Bot, AlertTriangle, ArrowUp, RotateCcw, X, MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 import type { BoardCard, FleetState, ReviewVerdict } from "@/lib/types";
 
 const STATE_LABEL: Record<FleetState, string> = {
@@ -16,15 +17,18 @@ const STATE_LABEL: Record<FleetState, string> = {
 };
 
 const VERDICT: Record<ReviewVerdict, { dot: string; label: string }> = {
-  approve: { dot: "bg-[#10B981]", label: "approved" },
+  approve: { dot: "bg-emerald-400", label: "approved" },
   caution: { dot: "bg-amber-400", label: "caution" },
   reject: { dot: "bg-red-500", label: "rejected" },
   reviewed: { dot: "bg-white/40", label: "reviewed" },
 };
 
+const pill = "inline-flex items-center gap-1 rounded bg-white/5 px-1.5 py-0.5 text-white/55";
+
 export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => void }) {
   const [merging, setMerging] = useState(false);
   const [acting, setActing] = useState(false);
+  const confirm = useConfirm();
   const failed = card.state === "failed" || card.labels.includes("agent-failed");
   const rejected = card.reviewVerdict === "reject";
 
@@ -63,14 +67,23 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
     }
   }
 
+  async function cancel() {
+    if (await confirm({ title: `Cancel task #${card.issue}?`, body: card.title, tone: "danger", confirmLabel: "Cancel task" }))
+      act("/api/tasks/cancel", { issue: card.issue }, `#${card.issue} cancelled`);
+  }
+
   async function merge() {
     if (!card.prNumber) return;
-    // Safety valve: a rejected PR requires explicit confirmation (mobile too).
+    // Safety valve: a rejected PR requires explicit type-to-confirm (mobile too).
     if (rejected) {
-      const typed = window.prompt(
-        "This PR was REJECTED by the reviewer. Type MERGE to merge anyway:",
-      );
-      if (typed !== "MERGE") return;
+      const ok = await confirm({
+        title: "Merge a rejected PR?",
+        body: "The reviewer REJECTED this PR. The verdict is a hint, not binding — but make sure you've looked.",
+        challenge: "MERGE",
+        confirmLabel: "Merge anyway",
+        tone: "danger",
+      });
+      if (!ok) return;
     }
     setMerging(true);
     const res = await fetch("/api/merge", {
@@ -94,17 +107,17 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
 
   return (
     <article
-      className={`rounded-lg border p-3 text-[#0F172A] ${
-        failed ? "border-red-400 bg-red-50" : "border-transparent bg-white"
+      className={`rounded-xl border p-3 ${
+        failed ? "border-red-500/40 bg-red-500/[0.06]" : "border-white/10 bg-white/[0.03]"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium leading-snug">{card.title}</p>
+        <p className="text-sm font-medium leading-snug text-white/90">{card.title}</p>
         <a
           href={card.issueUrl}
           target="_blank"
           rel="noreferrer"
-          className="shrink-0 text-[#94A3B8] hover:text-[#1B3A6B]"
+          className="shrink-0 text-white/40 hover:text-white"
           aria-label="Open on GitHub"
         >
           <ExternalLink className="size-4" />
@@ -112,19 +125,15 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-        <span className="rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[#475569]">#{card.issue}</span>
+        <span className={pill}>#{card.issue}</span>
         {card.model && (
-          <span className="inline-flex items-center gap-1 rounded bg-[#1B3A6B]/10 px-1.5 py-0.5 text-[#1B3A6B]">
+          <span className="inline-flex items-center gap-1 rounded bg-indigo-500/15 px-1.5 py-0.5 text-indigo-300">
             <Bot className="size-3" /> {card.model}
           </span>
         )}
-        {card.state && (
-          <span className="rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[#475569]">
-            {STATE_LABEL[card.state]}
-          </span>
-        )}
+        {card.state && <span className={pill}>{STATE_LABEL[card.state]}</span>}
         {card.reviewVerdict && (
-          <span className="inline-flex items-center gap-1 rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[#475569]">
+          <span className={pill}>
             <span className={`size-2 rounded-full ${VERDICT[card.reviewVerdict].dot}`} />
             {VERDICT[card.reviewVerdict].label}
           </span>
@@ -132,7 +141,7 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
       </div>
 
       {failed && card.error && (
-        <p className="mt-2 flex items-start gap-1 text-xs text-red-600">
+        <p className="mt-2 flex items-start gap-1 text-xs text-red-300">
           <AlertTriangle className="mt-0.5 size-3 shrink-0" /> {card.error.slice(0, 240)}
         </p>
       )}
@@ -140,7 +149,7 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
       <button
         onClick={discuss}
         disabled={acting}
-        className="mt-2 inline-flex items-center gap-1 text-xs text-[#1B3A6B] hover:underline disabled:opacity-50"
+        className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
       >
         <MessagesSquare className="size-3.5" /> Discuss
       </button>
@@ -151,11 +160,7 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
             onClick={() => act("/api/fleet/priority", { issue: card.issue, toFront: true }, `#${card.issue} moved to front`)}>
             <ArrowUp className="size-4" /> Prioritize
           </Button>
-          <Button variant="outline" size="sm" className="h-9" disabled={acting}
-            onClick={() => {
-              if (confirm(`Cancel task #${card.issue}?`))
-                act("/api/tasks/cancel", { issue: card.issue }, `#${card.issue} cancelled`);
-            }}>
+          <Button variant="outline" size="sm" className="h-9" disabled={acting} onClick={cancel}>
             <X className="size-4" /> Cancel
           </Button>
         </div>
@@ -173,7 +178,7 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
       {card.prNumber && (
         <div className="mt-3 space-y-1.5">
           {rejected && (
-            <p className="text-[11px] text-red-600">
+            <p className="text-[11px] text-red-300/90">
               Reviewer: rejected — merge requires confirmation. (Verdict = hint, not binding.)
             </p>
           )}

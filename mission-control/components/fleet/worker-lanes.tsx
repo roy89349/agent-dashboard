@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Clock, AlertTriangle, Skull, Ban, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 import { useFleet, fmtDur } from "./use-fleet";
 import type { SlotStatus, FleetState } from "@/lib/types";
 
@@ -42,6 +43,7 @@ export function WorkerLanes() {
 
 function WorkerLane({ slot, onCmd }: { slot: SlotStatus; onCmd: (cmd: string, issue?: number, confirm?: boolean) => void }) {
   const [showLog, setShowLog] = useState(true);
+  const confirm = useConfirm();
   const ph = slot.phase ? PHASE[slot.phase] : null;
   return (
     <article className={`rounded-2xl border p-3 ${slot.stale ? "border-amber-500/50 bg-amber-500/[0.04]" : "border-white/10 bg-white/[0.03]"}`}>
@@ -79,11 +81,17 @@ function WorkerLane({ slot, onCmd }: { slot: SlotStatus; onCmd: (cmd: string, is
         </Button>
         <div className="ml-auto flex items-center gap-1">
           <Button size="sm" variant="ghost" className="h-7 text-amber-300 hover:bg-amber-500/10"
-            onClick={() => slot.issue && confirm(`Cancel #${slot.issue}? (task will NOT be resumed)`) && onCmd("cancel", slot.issue, true)}>
+            onClick={async () => {
+              if (slot.issue && (await confirm({ title: `Cancel #${slot.issue}?`, body: "The task will NOT be resumed.", tone: "danger", confirmLabel: "Cancel task" })))
+                onCmd("cancel", slot.issue, true);
+            }}>
             <Ban className="size-3.5" /> Cancel
           </Button>
           <Button size="sm" variant="ghost" className="h-7 text-red-400 hover:bg-red-500/10"
-            onClick={() => slot.issue && confirm(`Kill #${slot.issue}? (task returns to agent-ready)`) && onCmd("kill", slot.issue, true)}>
+            onClick={async () => {
+              if (slot.issue && (await confirm({ title: `Kill #${slot.issue}?`, body: "The task returns to agent-ready and can be retried.", tone: "danger", confirmLabel: "Kill" })))
+                onCmd("kill", slot.issue, true);
+            }}>
             <Skull className="size-3.5" /> Kill
           </Button>
         </div>

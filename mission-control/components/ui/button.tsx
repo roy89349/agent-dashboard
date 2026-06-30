@@ -5,18 +5,20 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
+// Dark control-room button. Same variant + size names as before (every call site keeps working),
+// but the palette is dark-theme: translucent whites + emerald accent, never solid light surfaces.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1B3A6B] focus-visible:ring-offset-2 cursor-pointer select-none",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d1322] cursor-pointer select-none",
   {
     variants: {
       variant: {
-        default: "bg-[#1B3A6B] text-white hover:bg-[#152f58] active:scale-[0.98]",
-        accent: "bg-[#10B981] text-white hover:bg-[#059669] active:scale-[0.98]",
-        destructive: "bg-red-500 text-white hover:bg-red-600 active:scale-[0.98]",
-        outline: "border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F8FAFC] active:scale-[0.98]",
-        secondary: "bg-[#F1F5F9] text-[#475569] hover:bg-[#E2E8F0] active:scale-[0.98]",
-        ghost: "text-[#475569] hover:bg-[#F1F5F9] hover:text-[#0F172A] active:scale-[0.98]",
-        link: "text-[#1B3A6B] underline-offset-4 hover:underline p-0 h-auto",
+        default: "border border-white/10 bg-white/10 text-white hover:bg-white/15 active:scale-[0.98]",
+        accent: "bg-emerald-500 text-black hover:bg-emerald-400 active:scale-[0.98]",
+        destructive: "bg-red-500 text-white hover:bg-red-400 active:scale-[0.98]",
+        outline: "border border-white/15 bg-transparent text-white/80 hover:bg-white/5 hover:text-white active:scale-[0.98]",
+        secondary: "bg-white/5 text-white/75 hover:bg-white/10 hover:text-white active:scale-[0.98]",
+        ghost: "text-white/70 hover:bg-white/10 hover:text-white active:scale-[0.98]",
+        link: "text-emerald-400 underline-offset-4 hover:underline p-0 h-auto",
       },
       size: {
         default: "h-10 px-4 py-2",

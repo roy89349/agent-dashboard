@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Send, MessagesSquare, Bot, User, Loader2 } from "lucide-react";
+import { Plus, Send, MessagesSquare, Bot, User, Loader2, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Msg = { role: "user" | "assistant"; content: string; pending?: boolean };
@@ -13,6 +13,7 @@ export function ChatView() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [mobileListOpen, setMobileListOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeIdRef = useRef<string | null>(null); // current thread, for stream-vs-thread guard
   const abortRef = useRef<AbortController | null>(null); // in-flight stream, abortable on switch/unmount
@@ -49,6 +50,7 @@ export function ChatView() {
     abortRef.current?.abort(); // stop any running stream before switching threads
     activeIdRef.current = id;
     setActiveId(id);
+    setMobileListOpen(false); // collapse the slide-over on phones
     await loadMessages(id);
   }
 
@@ -63,6 +65,7 @@ export function ChatView() {
     activeIdRef.current = id;
     setActiveId(id);
     setMessages([]);
+    setMobileListOpen(false);
     loadConvs();
     return id;
   }
@@ -142,9 +145,13 @@ export function ChatView() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)]">
-      {/* conversation list */}
-      <div className="hidden w-64 shrink-0 flex-col border-r border-white/10 p-2 sm:flex">
+    <div className="relative flex h-[calc(100dvh-3.5rem)] max-md:h-[calc(100dvh-8.5rem)]">
+      {/* mobile backdrop for the slide-over list */}
+      {mobileListOpen && (
+        <div onClick={() => setMobileListOpen(false)} className="absolute inset-0 z-10 bg-black/50 sm:hidden" />
+      )}
+      {/* conversation list — static rail on desktop, slide-over on phones */}
+      <div className={`${mobileListOpen ? "flex" : "hidden"} absolute inset-y-0 left-0 z-20 w-64 shrink-0 flex-col border-r border-white/10 bg-[#0d1322] p-2 sm:static sm:flex sm:bg-transparent`}>
         <Button variant="secondary" size="sm" className="mb-2 w-full" onClick={() => newConv()}>
           <Plus className="size-4" /> New conversation
         </Button>
@@ -175,6 +182,18 @@ export function ChatView() {
 
       {/* thread */}
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* mobile thread top bar: open the list / new conversation */}
+        <div className="flex items-center gap-2 border-b border-white/10 px-2 py-1.5 sm:hidden">
+          <Button size="sm" variant="ghost" onClick={() => setMobileListOpen(true)}>
+            <PanelLeft className="size-4" /> Chats
+          </Button>
+          <span className="min-w-0 flex-1 truncate text-sm text-white/60">
+            {convs.find((c) => c.id === activeId)?.title ?? "New conversation"}
+          </span>
+          <Button size="sm" variant="secondary" onClick={() => newConv()} aria-label="New conversation">
+            <Plus className="size-4" />
+          </Button>
+        </div>
         <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
           {messages.length === 0 ? (
             <div className="grid h-full place-items-center text-center">

@@ -1,8 +1,9 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { BookOpen, Search, FileText, Save, Loader2 } from "lucide-react";
+import { BookOpen, Search, FileText, Save, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 
 type Entry = { path: string; name: string; dir: string };
 type Hit = { path: string; line: number; text: string };
@@ -17,7 +18,9 @@ export function KnowledgeView() {
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [mobileView, setMobileView] = useState<"list" | "editor">("list");
   const debTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const confirm = useConfirm();
 
   useEffect(() => {
     fetch("/api/knowledge", { cache: "no-store" })
@@ -45,18 +48,19 @@ export function KnowledgeView() {
 
   const openNote = useCallback(
     async (p: string) => {
-      if (dirty && !confirm("Discard unsaved changes?")) return;
+      if (dirty && !(await confirm({ title: "Discard unsaved changes?", tone: "danger", confirmLabel: "Discard" }))) return;
       const r = await fetch(`/api/knowledge/note?path=${encodeURIComponent(p)}`, { cache: "no-store" });
       const j = await r.json();
       if (r.ok) {
         setOpenPath(j.path);
         setContent(j.content);
         setDirty(false);
+        setMobileView("editor"); // on phones, jump to the editor pane
       } else {
         toast.error(j.error ?? "Could not open");
       }
     },
-    [dirty],
+    [dirty, confirm],
   );
 
   async function save() {
@@ -95,9 +99,9 @@ export function KnowledgeView() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)]">
-      {/* left: search + tree */}
-      <div className="flex w-72 shrink-0 flex-col border-r border-white/10">
+    <div className="flex h-[calc(100dvh-3.5rem)] max-md:h-[calc(100dvh-8.5rem)]">
+      {/* left: search + tree — full width on phones, fixed rail on desktop */}
+      <div className={`${mobileView === "editor" ? "hidden" : "flex"} w-full shrink-0 flex-col border-r border-white/10 sm:flex sm:w-72`}>
         <div className="flex items-center gap-2 border-b border-white/10 px-3">
           <Search className="size-4 text-white/40" />
           <input
@@ -145,10 +149,13 @@ export function KnowledgeView() {
       </div>
 
       {/* right: editor */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className={`${mobileView === "list" ? "hidden" : "flex"} min-w-0 flex-1 flex-col sm:flex`}>
         {openPath ? (
           <>
             <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2">
+              <button onClick={() => setMobileView("list")} className="-ml-1 rounded-lg p-1 text-white/50 hover:bg-white/10 hover:text-white sm:hidden" aria-label="Back to notes">
+                <ArrowLeft className="size-4" />
+              </button>
               <FileText className="size-4 text-white/40" />
               <span className="truncate text-sm text-white/80">{openPath}</span>
               {dirty && <span className="text-[10px] text-amber-400">● unsaved</span>}

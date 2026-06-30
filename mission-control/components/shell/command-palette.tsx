@@ -5,7 +5,6 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { toast } from "sonner";
 import {
   LayoutDashboard,
-  Cpu,
   MessagesSquare,
   BookOpen,
   Settings,
@@ -15,6 +14,8 @@ import {
   Search,
   CornerDownLeft,
   Inbox,
+  Users,
+  Radio,
 } from "lucide-react";
 
 type Item = {
@@ -61,7 +62,8 @@ export function CommandPalette({
     return [
       { group: "Navigation", label: "Dashboard", icon: LayoutDashboard, run: go("/") },
       { group: "Navigation", label: "Decision Inbox", hint: "pending approvals", icon: Inbox, run: go("/approvals") },
-      { group: "Navigation", label: "Workers", hint: "live who's doing what", icon: Cpu, run: go("/workers") },
+      { group: "Navigation", label: "War Room", hint: "live who's doing what", icon: Radio, run: go("/workers") },
+      { group: "Navigation", label: "Agents", hint: "the team", icon: Users, run: go("/agents") },
       { group: "Navigation", label: "Conversations", icon: MessagesSquare, run: go("/chats") },
       { group: "Navigation", label: "Knowledge", hint: "Obsidian vault", icon: BookOpen, run: go("/kennis") },
       { group: "Navigation", label: "Config", icon: Settings, run: go("/config") },

@@ -61,7 +61,7 @@ export function NewTaskDialog() {
             onChange={(e) => setTitle(e.target.value)}
           />
           <textarea
-            className="min-h-28 w-full rounded-lg border border-[#E2E8F0] p-3 text-sm text-[#0F172A] outline-none focus:ring-2 focus:ring-[#1B3A6B]"
+            className="min-h-28 w-full rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/20"
             placeholder="Optional: more context, acceptance criteria, files involved…"
             value={body}
             onChange={(e) => setBody(e.target.value)}
