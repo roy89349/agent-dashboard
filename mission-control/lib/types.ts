@@ -151,3 +151,47 @@ export function deriveColumn(
     return "building";
   return "backlog";
 }
+
+// ── agents registry (control/agents.json — config-driven team identities) ──
+// A worker is no longer an anonymous slot: it can run as a configured Agent with a role, skills,
+// model/effort/depth defaults, tools, budget and review behaviour. Additive: nothing consumes the
+// registry in the build flow yet, and a missing control/agents.json falls back to the committed
+// default team (deploy/agents.default.json) — see mission-control/lib/agents.ts.
+
+export type AgentModel = "haiku" | "sonnet" | "opus";
+
+/** Role is an OPEN string by design — the team is config-driven, never a hardcoded enum.
+ *  Conventional default roles: manager · frontend · backend · qa · security · devops ·
+ *  documentation · kpi · communication · data · designer · architect. */
+export type AgentRole = string;
+
+export interface Agent {
+  id: string; // stable slug, unique within the registry
+  name: string;
+  role: AgentRole;
+  skills: string[];
+  enabled: boolean;
+  model_default: AgentModel; // opus only honoured when ALLOW_GLOBAL_OPUS=1 (write-gated + downstream)
+  effort_default: Effort;
+  depth_default: Depth;
+  system_prompt_ref: string; // path to a prompt template file (NOT an inline prompt)
+  allowed_tools: string[]; // e.g. ["Read","Grep","Glob","Edit","Write","Bash"]
+  green_cmd: string | null; // per-role override of GREEN_CMD; null = use the global one
+  review_of_roles: string[]; // roles whose work this agent reviews
+  blocking: boolean; // true = its reject blocks the PR; false = advisory
+  label_scope: string[]; // issue labels this agent claims; empty = none (uses global LABEL_READY)
+  max_concurrency: number;
+  daily_token_budget: number | null; // null = fall back to the fleet-wide cap
+  credential_ref: string | null; // future: a scoped credential NAME (never a secret value)
+}
+
+/** Partial agent as the UI submits it: id required, everything else optional → filled with defaults. */
+export type AgentInput = Partial<Agent> & { id: string };
+
+/** The registry file (control/agents.json), CAS-guarded by `rev` like control/fleet.json. */
+export interface AgentsFile {
+  schema: number;
+  rev: number;
+  updated_at: string | null;
+  agents: Agent[];
+}

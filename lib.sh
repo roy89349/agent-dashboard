@@ -104,6 +104,79 @@ route_depth(){
   case "$d" in solo|orchestrate) echo "$d";; *) echo solo;; esac
 }
 
+# ── agents registry (control/agents.json — config-driven team; see mission-control/lib/agents.ts) ──
+# _agents_file -> the ACTIVE registry path: runtime control/agents.json, else the committed default
+# deploy/agents.default.json (override via AGENTS_DEFAULT_FILE), else nothing (-> callers fall back).
+_agents_file(){
+  if [ -f "$CONTROL_DIR/agents.json" ]; then printf '%s' "$CONTROL_DIR/agents.json"
+  else
+    local d="${AGENTS_DEFAULT_FILE:-$FLEET_DIR/deploy/agents.default.json}"
+    [ -f "$d" ] && printf '%s' "$d"
+  fi
+}
+
+# agent_field <agent-id> <field> : scalar field of one agent (arrays -> comma-joined; bool -> true/false).
+# Empty if no registry / not found. Never evals: file path + args passed as python argv.
+agent_field(){
+  local af; af="$(_agents_file)"; [ -n "$af" ] || return 0
+  python3 - "$af" "$1" "$2" 2>/dev/null <<'PY'
+import json,sys
+af,aid,key=sys.argv[1],sys.argv[2],sys.argv[3]
+try: agents=json.load(open(af)).get("agents",[])
+except Exception: agents=[]
+a=next((x for x in agents if x.get("id")==aid), None)
+if not a: sys.exit()
+v=a.get(key)
+if v is None or isinstance(v,dict): sys.exit()
+if isinstance(v,bool): print("true" if v else "false")
+elif isinstance(v,list): print(",".join(str(x) for x in v))
+else: print(v)
+PY
+}
+
+# role_field <role> <field> : same, for the FIRST ENABLED agent with that role.
+role_field(){
+  local af; af="$(_agents_file)"; [ -n "$af" ] || return 0
+  python3 - "$af" "$1" "$2" 2>/dev/null <<'PY'
+import json,sys
+af,role,key=sys.argv[1],sys.argv[2],sys.argv[3]
+try: agents=json.load(open(af)).get("agents",[])
+except Exception: agents=[]
+a=next((x for x in agents if x.get("enabled") and x.get("role")==role), None)
+if not a: sys.exit()
+v=a.get(key)
+if v is None or isinstance(v,dict): sys.exit()
+if isinstance(v,bool): print("true" if v else "false")
+elif isinstance(v,list): print(",".join(str(x) for x in v))
+else: print(v)
+PY
+}
+
+# route_role <issue> [labels-csv] -> the role that should handle this task, or EMPTY.
+# Precedence: per-task role (fleet.json tasks[issue].role)
+#           > label_scope match (first enabled agent whose label_scope intersects the issue labels)
+#           > configured DEFAULT_ROLE (only if an enabled agent has it)
+#           > empty  (no registry / no confident role -> caller keeps the current global behaviour).
+route_role(){
+  local issue="$1" labels="${2:-}" r af
+  r="$(task_field "$issue" role)"; [ -n "$r" ] && { echo "$r"; return 0; }
+  af="$(_agents_file)"; [ -n "$af" ] || return 0
+  python3 - "$af" "$labels" "${DEFAULT_ROLE:-}" 2>/dev/null <<'PY'
+import json,sys
+af,labels_csv,default_role=sys.argv[1],sys.argv[2],sys.argv[3]
+try: agents=json.load(open(af)).get("agents",[])
+except Exception: agents=[]
+enabled=[a for a in agents if a.get("enabled")]
+labels={x.strip() for x in labels_csv.split(",") if x.strip()}
+for a in enabled:                                   # 2) label_scope match
+    if labels and (labels & set(a.get("label_scope",[]) or [])):
+        print(a.get("role","")); sys.exit()
+if default_role and any(a.get("role")==default_role for a in enabled):  # 3) configured default
+    print(default_role); sys.exit()
+# else: empty -> caller falls back to the current global behaviour
+PY
+}
+
 # cmd_field <json-line> <key> : field from one command line as ONE python argv (never eval/field-split).
 cmd_field(){
   python3 -c 'import json,sys
