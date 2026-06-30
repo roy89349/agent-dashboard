@@ -16,10 +16,27 @@ import {
   approvalErrorStatus,
 } from "../approvals";
 import { runApprovalAction } from "./actions";
+import { enforce, permissionStatusOf } from "../permissions";
 
 export interface Reply {
   text: string;
   buttons?: Button[][];
+}
+
+// Read-only / approval-resolution verbs skip the permission layer; EVERY other (mutating) verb is enforced
+// (audited + approval-gated) below — fail-closed, so a new mutating verb can't silently bypass.
+const PHONE_READONLY = new Set(["unauthorized", "empty", "help", "unknown", "status", "decision", "new_task_button", "free_text"]);
+
+function phoneSummary(plan: CommandPlan): string {
+  switch (plan.kind) {
+    case "fleet_mode": return `Set the fleet to ${plan.mode}`;
+    case "breaker_reset": return "Reset the circuit breaker";
+    case "create_task": return `Create task: ${plan.title}`;
+    case "continue": return `Re-queue #${plan.issue} (re-triggers autonomous work)`;
+    case "cancel": return `Cancel #${plan.issue}`;
+    case "priority": return `Set #${plan.issue} priority → ${plan.level}`;
+    default: return plan.kind;
+  }
 }
 
 async function statusReply(provider: PhoneProvider, what: string): Promise<Reply> {
@@ -99,6 +116,28 @@ export async function executeCommand(provider: PhoneProvider, plan: CommandPlan,
   const audit = (action: string, detail?: string, issue?: number | null) =>
     recordAudit({ actor, via: "telegram", action, issue: issue ?? null, detail: detail ?? null });
 
+  // ── central permission layer: enforce every mutating fleet command (the phone operator is a trusted
+  //    human, so most pass + are audited; dangerous ones — stop / cap / opus — return an approval card). ──
+  if (!PHONE_READONLY.has(plan.kind)) {
+    try {
+      const d = await enforce(
+        { type: "phone_command", verb: plan.kind, mode: "mode" in plan ? plan.mode : undefined, mutates: true, issue: "issue" in plan ? plan.issue : undefined },
+        { agentId: null, initiator: "phone", trusted: true, confirmed: false, via: "telegram", actor },
+        { summary: phoneSummary(plan) },
+      );
+      if (!d.allowed)
+        return {
+          text: warn(`${phoneSummary(plan)} — needs your approval.`),
+          buttons: [[{ text: "✅ Approve", data: `apv:${d.approvalId}:approve` }, { text: "✖️ Reject", data: `apv:${d.approvalId}:reject` }]],
+        };
+    } catch (e) {
+      // FAIL-CLOSED: any throw from enforce (a 403 deny OR a store/audit outage mid-enforce) blocks the
+      // command — an error must never fall through to the executing switch.
+      const denied = permissionStatusOf(e) === 403;
+      return { text: err(denied ? `Not permitted: ${e instanceof Error ? e.message : "denied"}` : "Could not verify permission — command blocked.") };
+    }
+  }
+
   switch (plan.kind) {
     case "unauthorized":
       return { text: err("Not authorized.") };
@@ -112,19 +151,8 @@ export async function executeCommand(provider: PhoneProvider, plan: CommandPlan,
       return statusReply(provider, plan.what);
 
     case "fleet_mode": {
-      if (plan.needsApproval) {
-        const { approval } = createApproval({
-          kind: "risky_action",
-          summary: `Stop the fleet (mode=${plan.mode})?`,
-          risk: "halts all autonomous work until resumed",
-          action: { type: "fleet_mode", mode: plan.mode },
-        });
-        audit("phone.command", `request stop (approval ${approval.id})`);
-        return {
-          text: warn("Stopping the fleet halts all autonomous work until you resume. Confirm?"),
-          buttons: [[{ text: "✅ Confirm stop", data: `apv:${approval.id}:approve` }, { text: "✖️ Cancel", data: `apv:${approval.id}:reject` }]],
-        };
-      }
+      // dangerous modes (stop) were already intercepted by the permission layer above (it returned an
+      // approval card); reaching here means the mode is permitted (running/paused) → apply it.
       try {
         const cur = readFleet();
         writeFleet({ mode: plan.mode }, cur.rev, true);

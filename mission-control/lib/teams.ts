@@ -390,3 +390,14 @@ export function writeTeams(patch: TeamsPatchInput, baseRev: number, confirm?: bo
 export function teamById(id: string): Team | null {
   return readTeams().teams.find((t) => t.id === id) ?? null;
 }
+
+/** The SAFEST enabled, non-template team the agent belongs to, so the permission layer applies the most
+ *  restrictive approval policy when an agent is in several teams. Safer = manual < auto_below_risk < auto,
+ *  and a team with blocking_roles is safer than one without. Reads only, never throws. */
+export function teamForAgent(agentId: string): Team | null {
+  const teams = readTeams().teams.filter((t) => t.enabled && !t.is_template && t.members.includes(agentId));
+  if (teams.length === 0) return null;
+  const modeRank: Record<string, number> = { manual: 0, auto_below_risk: 1, auto: 2 };
+  const safety = (t: Team) => (modeRank[t.approval_policy.mode] ?? 0) * 2 - (t.approval_policy.blocking_roles.length ? 1 : 0); // lower = safer
+  return teams.slice().sort((a, b) => safety(a) - safety(b))[0];
+}

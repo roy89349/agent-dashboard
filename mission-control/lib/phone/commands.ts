@@ -67,7 +67,9 @@ export function routeCommand(provider: PhoneProvider, incoming: IncomingMessage)
     case "resume":
       return { kind: "fleet_mode", mode: "running", needsApproval: false };
     case "stop":
-      return { kind: "fleet_mode", mode: "stopped", needsApproval: true }; // dangerous → confirm
+      // needsApproval is now ADVISORY (button-UX hint only); lib/permissions.ts is authoritative — execute.ts
+      // runs every mutating verb through enforce(), which gates a fleet stop as high-risk → approval.
+      return { kind: "fleet_mode", mode: "stopped", needsApproval: true };
     case "breaker_reset":
       return { kind: "breaker_reset" };
     case "prompt":
