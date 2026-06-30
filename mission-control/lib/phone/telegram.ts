@@ -9,6 +9,7 @@ import type {
   Button,
   StatusSummary,
 } from "./types";
+import { statusCard, approvalCard } from "./format.ts";
 
 const TOKEN = () => (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
 const ALLOWED = () => (process.env.TELEGRAM_ALLOWED_CHAT_ID ?? "").trim();
@@ -96,6 +97,7 @@ export const telegramProvider: PhoneProvider = {
     return tg("sendMessage", {
       chat_id: opts?.chatId ?? ALLOWED(),
       text: text.slice(0, 4000),
+      parse_mode: "HTML",
       disable_web_page_preview: true,
       reply_markup: toInlineKeyboard(opts?.buttons),
     });
@@ -116,17 +118,6 @@ export const telegramProvider: PhoneProvider = {
   },
 
   formatDecisionMessage(a: Approval) {
-    const lines = [
-      `🔐 Approval needed: ${a.kind.replace(/_/g, " ")}`,
-      a.summary ? `• ${a.summary}` : "",
-      a.agent_id ? `• agent: ${a.agent_id}` : "",
-      a.issue ? `• issue: #${a.issue}` : "",
-      a.pr ? `• PR: #${a.pr}` : "",
-      a.risk ? `• risk: ${a.risk}` : "",
-      a.advice ? `• advice: ${a.advice}` : "",
-      a.diff_preview ? `\ncontext:\n${a.diff_preview}` : "",
-      a.expires_at ? `\nexpires: ${a.expires_at}` : "",
-    ].filter(Boolean);
     const buttons: Button[][] = [
       [
         { text: "✅ Approve", data: `apv:${a.id}:approve` },
@@ -139,18 +130,10 @@ export const telegramProvider: PhoneProvider = {
       [{ text: "⏸ Pause task", data: `apv:${a.id}:pause` }],
     ];
     if (PUBLIC_URL()) buttons.push([{ text: "🖥 Open dashboard", url: `${PUBLIC_URL()}/?approval=${a.id}` }]);
-    return { text: lines.join("\n"), buttons };
+    return { text: approvalCard(a), buttons };
   },
 
   formatStatusMessage(s: StatusSummary) {
-    const head = s.online ? (s.claiming ? "🟢 running" : `🟡 ${s.pauseReason ?? "paused"}`) : "🔴 offline";
-    const slots = s.slots.length
-      ? s.slots.map((sl) => `  • #${sl.issue ?? "?"} ${sl.phase ?? "-"}${sl.title ? ` — ${sl.title}` : ""}`).join("\n")
-      : "  • (idle)";
-    return [
-      `Fleet: ${head}  ·  mode=${s.mode}  ·  workers=${s.workers}`,
-      `PRs today: ${s.prsToday}  ·  breaker: ${s.breakerTripped ? "TRIPPED" : "ok"}  ·  pending approvals: ${s.pendingApprovals}`,
-      `workers:\n${slots}`,
-    ].join("\n");
+    return statusCard(s);
   },
 };

@@ -3,7 +3,7 @@
 // + validated it. No shell-out. Every action is audited.
 import type { PhoneProvider, Button } from "./types";
 import type { CommandPlan } from "./commands";
-import { HELP_TEXT } from "./commands";
+import { ok, warn, err, info, helpCard, listCard, approvalCard, esc } from "./format.ts";
 import { readFleet, writeFleet, appendCommand, prioritizeIssue, readStatus } from "../fleet";
 import { listFleetIssues, listOpenPulls, createAgentTask, requeueIssue } from "../github";
 import { readAgents } from "../agents";
@@ -13,7 +13,6 @@ import {
   decideApproval,
   getApproval,
   listPendingApprovals,
-  redactApprovalPreview,
   approvalErrorStatus,
 } from "../approvals";
 import { runApprovalAction } from "./actions";
@@ -26,26 +25,43 @@ export interface Reply {
 async function statusReply(provider: PhoneProvider, what: string): Promise<Reply> {
   if (what === "agents") {
     const a = readAgents().agents;
-    const on = a.filter((x) => x.enabled);
+    const on = a.filter((x) => x.enabled).length;
     return {
-      text: `Agents (${on.length}/${a.length} enabled):\n` +
-        a.map((x) => `  ${x.enabled ? "🟢" : "⚪️"} ${x.role} — ${x.name}${x.blocking ? " [blocking]" : ""}`).join("\n"),
+      text: listCard(
+        `👥 <b>Agents</b>  <i>(${on}/${a.length} enabled)</i>`,
+        a.map((x) => `${x.enabled ? "🟢" : "⚪️"} <b>${esc(x.role)}</b> — ${esc(x.name)}${x.blocking ? " 🛡" : ""}`),
+        "none",
+      ),
     };
   }
   if (what === "tasks") {
     const issues = (await listFleetIssues().catch(() => [])).slice(0, 15);
-    return { text: issues.length ? "Tasks:\n" + issues.map((i) => `  #${i.number} [${i.labels.join(",")}] ${i.title}`).join("\n") : "No fleet tasks." };
+    return {
+      text: listCard(
+        "📋 <b>Tasks</b>",
+        issues.map((i) => `<b>#${esc(i.number)}</b> <i>[${esc(i.labels.join(", "))}]</i> ${esc(i.title)}`),
+        "no fleet tasks",
+      ),
+    };
   }
   if (what === "prs") {
     const prs = (await listOpenPulls().catch(() => [])).slice(0, 15);
-    return { text: prs.length ? "Open PRs:\n" + prs.map((p) => `  #${p.number} ${p.title}${p.issue ? ` (closes #${p.issue})` : ""}`).join("\n") : "No open PRs." };
+    return {
+      text: listCard(
+        "🔀 <b>Open PRs</b>",
+        prs.map((p) => `<b>#${esc(p.number)}</b> ${esc(p.title)}${p.issue ? ` <i>(closes #${esc(p.issue)})</i>` : ""}`),
+        "no open PRs",
+      ),
+    };
   }
   if (what === "decisions") {
     const ps = listPendingApprovals();
-    if (!ps.length) return { text: "No pending approvals." };
     return {
-      text: "Pending approvals:\n" + ps.map((p) => `  • ${p.kind} — ${p.summary}${p.issue ? ` (#${p.issue})` : ""}`).join("\n") +
-        "\n(use /decisions on the dashboard or wait for the buttons)",
+      text: listCard(
+        "🔐 <b>Pending approvals</b>",
+        ps.map((p) => `• <b>${esc(p.kind)}</b> — ${esc(p.summary)}${p.issue ? ` (#${esc(p.issue)})` : ""}`),
+        "no pending approvals — you're all clear",
+      ),
     };
   }
   // status / fleet
@@ -85,12 +101,12 @@ export async function executeCommand(provider: PhoneProvider, plan: CommandPlan,
 
   switch (plan.kind) {
     case "unauthorized":
-      return { text: "Not authorized." };
+      return { text: err("Not authorized.") };
     case "empty":
     case "help":
-      return { text: HELP_TEXT };
+      return { text: helpCard() };
     case "unknown":
-      return { text: "Unknown command. Try /help." };
+      return { text: warn("Unknown command — try /help.") };
 
     case "status":
       return statusReply(provider, plan.what);
@@ -105,7 +121,7 @@ export async function executeCommand(provider: PhoneProvider, plan: CommandPlan,
         });
         audit("phone.command", `request stop (approval ${approval.id})`);
         return {
-          text: `⚠️ Stopping the fleet needs confirmation.`,
+          text: warn("Stopping the fleet halts all autonomous work until you resume. Confirm?"),
           buttons: [[{ text: "✅ Confirm stop", data: `apv:${approval.id}:approve` }, { text: "✖️ Cancel", data: `apv:${approval.id}:reject` }]],
         };
       }
@@ -113,16 +129,16 @@ export async function executeCommand(provider: PhoneProvider, plan: CommandPlan,
         const cur = readFleet();
         writeFleet({ mode: plan.mode }, cur.rev, true);
         audit("fleet.mode", plan.mode);
-        return { text: `Fleet → ${plan.mode}.` };
+        return { text: ok(`Fleet → <b>${esc(plan.mode)}</b>`) };
       } catch (e) {
-        return { text: `Could not change mode: ${e instanceof Error ? e.message : "error"}` };
+        return { text: err(`Could not change mode: ${e instanceof Error ? e.message : "error"}`) };
       }
     }
 
     case "breaker_reset":
       appendCommand({ cmd: "breaker-reset" });
       audit("fleet.breaker_reset");
-      return { text: "🧯 Breaker reset requested." };
+      return { text: ok("Breaker reset requested.") };
 
     case "create_task": {
       try {
@@ -132,9 +148,14 @@ export async function executeCommand(provider: PhoneProvider, plan: CommandPlan,
           source: "phone",
         });
         audit("task.create", `#${r.number}${plan.role ? ` role=${plan.role}` : ""}`, r.number);
-        return { text: `✅ Task created: #${r.number}${plan.role ? ` (assigned to ${plan.role})` : ""}\n${r.url}` };
+        return {
+          text: info(`✅ Task created — #${r.number}`, [
+            plan.role ? `👥 assigned to <b>${esc(plan.role)}</b>` : "",
+            `🔗 ${esc(r.url)}`,
+          ]),
+        };
       } catch (e) {
-        return { text: `Could not create task: ${e instanceof Error ? e.message : "error"}` };
+        return { text: err(`Could not create task: ${e instanceof Error ? e.message : "error"}`) };
       }
     }
 
@@ -147,27 +168,30 @@ export async function executeCommand(provider: PhoneProvider, plan: CommandPlan,
         action: { type: "create_task" },
       });
       audit("phone.message", `parked as ${approval.id}`);
-      return { text: `📝 Got it:\n“${plan.text}”\n\nWant me to make this a task?`, buttons: newTaskButtons(approval.id) };
+      return {
+        text: info("📝 Got it", [`<blockquote>${esc(plan.text)}</blockquote>`, "", "Want me to make this a task?"]),
+        buttons: newTaskButtons(approval.id),
+      };
     }
 
     case "continue":
       try {
         await requeueIssue(plan.issue);
         audit("task.continue", `#${plan.issue}`, plan.issue);
-        return { text: `▶️ #${plan.issue} re-queued (agent-ready).` };
+        return { text: ok(`#${esc(plan.issue)} re-queued (agent-ready).`) };
       } catch (e) {
-        return { text: `Could not continue #${plan.issue}: ${e instanceof Error ? e.message : "error"}` };
+        return { text: err(`Could not continue #${plan.issue}: ${e instanceof Error ? e.message : "error"}`) };
       }
 
     case "cancel":
       appendCommand({ cmd: "cancel", issue: plan.issue });
       audit("task.cancel", `#${plan.issue}`, plan.issue);
-      return { text: `🚫 Cancel requested for #${plan.issue}.` };
+      return { text: ok(`Cancel requested for #${esc(plan.issue)}.`) };
 
     case "priority":
       prioritizeIssue(plan.issue, plan.level === "high");
       audit("task.priority", `#${plan.issue} ${plan.level}`, plan.issue);
-      return { text: `📌 #${plan.issue} priority → ${plan.level}.` };
+      return { text: ok(`#${esc(plan.issue)} priority → <b>${esc(plan.level)}</b>.`) };
 
     case "decision":
       return decideReply(plan.approvalId, plan.action, actor);
@@ -183,31 +207,24 @@ async function decideReply(
   actor: string,
 ): Promise<Reply> {
   const a = getApproval(id);
-  if (!a) return { text: "That approval no longer exists." };
-  if (action === "info")
-    return {
-      text: `ℹ️ ${a.kind} — ${a.summary}\n` +
-        (a.risk ? `risk: ${a.risk}\n` : "") +
-        (a.advice ? `advice: ${a.advice}\n` : "") +
-        (a.diff_preview ? `\n${redactApprovalPreview(a.diff_preview)}` : "") +
-        `\nstatus: ${a.status}`,
-    };
-  if (action === "manager") return { text: "👔 Noted — leaving this for the manager to weigh in." };
+  if (!a) return { text: err("That approval no longer exists.") };
+  if (action === "info") return { text: approvalCard(a) + `\n\nstatus: <b>${esc(a.status)}</b>` };
+  if (action === "manager") return { text: info("👔 Over to the manager", ["Leaving this one for the manager to weigh in."]) };
   try {
     if (action === "pause") {
       decideApproval(id, "reject", { via: "telegram", by: actor, trusted: true, reason: "paused via phone" });
       if (a.issue) appendCommand({ cmd: "cancel", issue: a.issue });
-      return { text: `⏸ Paused${a.issue ? ` #${a.issue}` : ""} and dismissed the approval.` };
+      return { text: ok(`Paused${a.issue ? ` #${esc(a.issue)}` : ""} and dismissed the approval.`) };
     }
     const decided = decideApproval(id, action, { via: "telegram", by: actor, trusted: true });
     if (action === "approve") {
       const res = await runApprovalAction(decided);
-      return { text: res.ok ? `✅ Approved — ${res.detail}` : `✅ Approved, but the action failed: ${res.detail}` };
+      return { text: res.ok ? ok(`Approved — ${esc(res.detail)}`) : warn(`Approved, but the action failed: ${esc(res.detail)}`) };
     }
-    return { text: "❌ Rejected." };
+    return { text: "❌ <b>Rejected.</b>" };
   } catch (e) {
     const s = approvalErrorStatus(e);
-    return { text: s === 410 ? "This approval has expired." : s === 409 ? "Already decided." : `Could not decide: ${e instanceof Error ? e.message : "error"}` };
+    return { text: s === 410 ? warn("This approval has expired.") : s === 409 ? warn("Already decided.") : err(`Could not decide: ${e instanceof Error ? e.message : "error"}`) };
   }
 }
 
@@ -217,21 +234,26 @@ async function newTaskReply(
   actor: string,
 ): Promise<Reply> {
   const a = getApproval(id);
-  if (!a) return { text: "That suggestion is no longer available." };
-  if (choice === "manager") return { text: "👔 Okay — I'll let the manager weigh in first." };
+  if (!a) return { text: err("That suggestion is no longer available.") };
+  if (choice === "manager") return { text: info("👔 Over to the manager", ["I'll let the manager weigh in first."]) };
   if (choice === "cancel") {
     try {
       decideApproval(id, "reject", { via: "telegram", by: actor, trusted: true, reason: "cancelled" });
     } catch {}
-    return { text: "✖️ Cancelled." };
+    return { text: "✖️ <b>Cancelled.</b>" };
   }
   try {
     const role = choice === "create" ? null : choice;
     const r = await createAgentTask({ title: a.summary, labels: role ? [role] : undefined, source: "phone (manager)" });
     decideApproval(id, "approve", { via: "telegram", by: actor, trusted: true });
     recordAudit({ actor, via: "telegram", action: "task.create", approval_id: id, issue: r.number, detail: role ?? "" });
-    return { text: `✅ Task created: #${r.number}${role ? ` (assigned to ${role})` : ""}\n${r.url}` };
+    return {
+      text: info(`✅ Task created — #${r.number}`, [
+        role ? `👥 assigned to <b>${esc(role)}</b>` : "",
+        `🔗 ${esc(r.url)}`,
+      ]),
+    };
   } catch (e) {
-    return { text: `Could not create task: ${e instanceof Error ? e.message : "error"}` };
+    return { text: err(`Could not create task: ${e instanceof Error ? e.message : "error"}`) };
   }
 }
