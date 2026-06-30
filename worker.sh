@@ -140,20 +140,39 @@ RULES:
 - Do NOT touch secrets/.env files/deploy config/.github/workflows, or anything outside this task's scope.$VAULT_NOTE$ORCH_NOTE
 - End with a 1-3 sentence summary of what you changed."
 
-log "🛠  building in sandbox (model=$MODEL_SEL, effort=$EFFORT_SEL, max-turns=$TURNS)…"
-# Install + agent + green-gate run INSIDE a rootless Podman sandbox: only the worktree is mounted,
-# NO host secrets (gh token / ~/.claude / config) reach the injectable agent, and it runs non-root.
-# git push + PR stay OUTSIDE in this orchestrator (credential broker). See deploy/sandbox/.
+# build_on_host <wt> <model> <effort> <maxturns> <promptfile> — the SAME pipeline as the sandbox,
+# but run directly on the HOST (NO isolation). ONLY used when FLEET_SANDBOX=off (local dev without
+# podman). Same exit contract as deploy/sandbox/run-build.sh: 0=ok · 21/22=install · 23=green-gate.
+build_on_host(){
+  ( cd "$1" || exit 30
+    npm ci --no-audit --no-fund 2>/dev/null || npm install --no-audit --no-fund || exit 21
+    _pb="$(md5sum package.json 2>/dev/null || true)"
+    claude -p "$(cat "$5")" --model "$2" --effort "$3" --dangerously-skip-permissions --max-turns "$4" || echo "claude exit≠0 (gates decide)"
+    _pa="$(md5sum package.json 2>/dev/null || true)"
+    [ "$_pb" = "$_pa" ] || { npm install --no-audit --no-fund || exit 22; }
+    eval "$GREEN_CMD" || exit 23 )
+}
+
 PROMPT_FILE="$FLEET_DIR/logs/issue-$NUM.prompt.txt"
 printf '%s' "$PROMPT" > "$PROMPT_FILE"
-GREEN_CMD="$GREEN_CMD" "$FLEET_DIR/deploy/sandbox/run-build.sh" "$WT" "$MODEL_SEL" "$EFFORT_SEL" "$TURNS" "$PROMPT_FILE" >"$AGENT_LOG" 2>&1
-SANDBOX_RC=$?
+# ── BUILD STEP — sandbox (default) or host-fallback (FLEET_SANDBOX=off). Install + agent + green-gate
+# run together; git push + PR stay OUTSIDE this orchestrator (credential broker). See deploy/sandbox/. ──
+if [ "${FLEET_SANDBOX:-on}" = off ] || [ "${FLEET_SANDBOX:-on}" = 0 ]; then
+  log "⚠️  FLEET_SANDBOX=off — building ON THE HOST (no isolation; agent can read host secrets). Dev only."
+  build_on_host "$WT" "$MODEL_SEL" "$EFFORT_SEL" "$TURNS" "$PROMPT_FILE" >"$AGENT_LOG" 2>&1; BUILD_RC=$?
+elif command -v podman >/dev/null 2>&1; then
+  log "🛠  building in sandbox (image=$SANDBOX_IMAGE, model=$MODEL_SEL, effort=$EFFORT_SEL, max-turns=$TURNS)…"
+  GREEN_CMD="$GREEN_CMD" "$FLEET_DIR/deploy/sandbox/run-build.sh" "$WT" "$MODEL_SEL" "$EFFORT_SEL" "$TURNS" "$PROMPT_FILE" >"$AGENT_LOG" 2>&1; BUILD_RC=$?
+else
+  rm -f "$PROMPT_FILE"
+  fail "FLEET_SANDBOX=on but podman is not installed — install it (deploy/bootstrap.sh) or set FLEET_SANDBOX=off for host-mode dev"
+fi
 rm -f "$PROMPT_FILE"
-case "$SANDBOX_RC" in
+case "$BUILD_RC" in
   0) : ;;
-  21|22) fail "sandbox dependency install failed — $(tail -n 2 "$AGENT_LOG" | tr '\n' ' ')" ;;
+  21|22) fail "dependency install failed — $(tail -n 2 "$AGENT_LOG" | tr '\n' ' ')" ;;
   23) fail "green-gate failed — $(tail -n 2 "$AGENT_LOG" | tr '\n' ' ')" ;;
-  *)  fail "sandbox infrastructure error (rc=$SANDBOX_RC) — $(tail -n 2 "$AGENT_LOG" | tr '\n' ' ')" ;;
+  *)  fail "build infrastructure error (rc=$BUILD_RC) — $(tail -n 2 "$AGENT_LOG" | tr '\n' ' ')" ;;
 esac
 
 # stage everything, then run the gates

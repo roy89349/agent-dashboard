@@ -9,9 +9,15 @@ set -uo pipefail
 WT="$1"; MODEL="$2"; EFFORT="$3"; MAXT="$4"; PROMPTF="$5"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE="${SANDBOX_IMAGE:-localhost/fleet-sandbox:latest}"
-TOKEN="$(python3 -c "import json,os;print(json.load(open(os.path.expanduser(chr(126)+\"/.claude/.credentials.json\")))[\"claudeAiOauth\"][\"accessToken\"])" 2>/dev/null)"
-[ -n "$TOKEN" ] || { echo "empty/unreadable claude token"; exit 30; }
+NET="${SANDBOX_NET:-pasta}"
+# Auth for the container: prefer an explicit standalone token (CLAUDE_SANDBOX_TOKEN); otherwise
+# derive a SHORT-LIVED access token from ~/.claude on the HOST (the refresh-capable creds never
+# enter the container). The host's router/reviewer claude calls keep that access token fresh.
+TOKEN="${CLAUDE_SANDBOX_TOKEN:-}"
+[ -n "$TOKEN" ] || TOKEN="$(python3 -c "import json,os;print(json.load(open(os.path.expanduser(chr(126)+\"/.claude/.credentials.json\")))[\"claudeAiOauth\"][\"accessToken\"])" 2>/dev/null)"
+[ -n "$TOKEN" ] || { echo "no Claude token: set CLAUDE_SANDBOX_TOKEN or sign in on the host (claude setup-token)"; exit 30; }
 exec podman run --rm --userns=keep-id \
+  --network "$NET" \
   --read-only --tmpfs /tmp \
   --mount type=tmpfs,destination=/home/agent,tmpfs-mode=1777 \
   -v "$WT":/work:rw \
