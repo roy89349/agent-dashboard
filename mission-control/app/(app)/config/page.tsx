@@ -46,7 +46,7 @@ function PhoneSection() {
     fetch("/api/integrations/phone", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then(setP).catch(() => {});
     fetch("/api/approvals?status=pending", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setP && setPending(d?.approvals?.length ?? 0))
+      .then((d) => setPending(d?.approvals?.length ?? 0))
       .catch(() => {});
   };
   useEffect(load, []);
