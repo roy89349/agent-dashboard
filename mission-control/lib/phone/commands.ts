@@ -53,7 +53,7 @@ export function routeCommand(provider: PhoneProvider, incoming: IncomingMessage)
   }
   switch (command) {
     case "help":
-    case "start_help":
+    case "start": // Telegram's default first command → welcome/help (use /resume to resume the fleet)
       return { kind: "help" };
     case "status":
     case "fleet":
@@ -65,7 +65,6 @@ export function routeCommand(provider: PhoneProvider, incoming: IncomingMessage)
     case "pause":
       return { kind: "fleet_mode", mode: "paused", needsApproval: false };
     case "resume":
-    case "start":
       return { kind: "fleet_mode", mode: "running", needsApproval: false };
     case "stop":
       return { kind: "fleet_mode", mode: "stopped", needsApproval: true }; // dangerous → confirm
@@ -108,7 +107,7 @@ export const HELP_TEXT = [
   "Mission Control — phone commands:",
   "",
   "Status:  /status  /fleet  /agents  /tasks  /prs  /decisions",
-  "Control: /pause  /resume  /start  /stop  /breaker_reset",
+  "Control: /pause  /resume  /stop  /breaker_reset",
   "Tasks:   /task <text>   /prompt <text>   /goal <text>",
   "Roles:   /assign <role> <text>   /frontend <text>   /backend <text>   /qa <text>   /security <text>   /manager <text>",
   "Work:    /continue <issue>   /cancel <issue>   /priority <issue> high|normal|low",

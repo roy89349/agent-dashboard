@@ -67,6 +67,7 @@ test("routeCommand: status / fleet control", () => {
   assert.deepEqual(routeCommand(telegramProvider, msg("/status")), { kind: "status", what: "status" });
   assert.deepEqual(routeCommand(telegramProvider, msg("/pause")), { kind: "fleet_mode", mode: "paused", needsApproval: false });
   assert.deepEqual(routeCommand(telegramProvider, msg("/resume")), { kind: "fleet_mode", mode: "running", needsApproval: false });
+  assert.deepEqual(routeCommand(telegramProvider, msg("/start")), { kind: "help" }); // Telegram welcome, not resume
   // dangerous: /stop requires confirmation/approval
   assert.deepEqual(routeCommand(telegramProvider, msg("/stop")), { kind: "fleet_mode", mode: "stopped", needsApproval: true });
   assert.deepEqual(routeCommand(telegramProvider, msg("/breaker_reset")), { kind: "breaker_reset" });
