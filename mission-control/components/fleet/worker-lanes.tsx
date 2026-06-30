@@ -8,6 +8,7 @@ import type { SlotStatus, FleetState } from "@/lib/types";
 const PHASE: Record<FleetState, { label: string; cls: string }> = {
   claimed: { label: "Claimed", cls: "bg-white/15 text-white/70" },
   building: { label: "Building", cls: "bg-indigo-500/80 text-white" },
+  security: { label: "Security", cls: "bg-rose-500/80 text-white" },
   gating: { label: "Green gate", cls: "bg-amber-500/80 text-black" },
   "pr-open": { label: "PR open", cls: "bg-emerald-500/80 text-white" },
   reviewed: { label: "Reviewed", cls: "bg-teal-500/80 text-black" },

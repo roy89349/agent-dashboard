@@ -8,6 +8,7 @@ import type { BoardCard, FleetState, ReviewVerdict } from "@/lib/types";
 const STATE_LABEL: Record<FleetState, string> = {
   claimed: "Claimed",
   building: "Building…",
+  security: "Security…",
   gating: "Green gate…",
   "pr-open": "PR open",
   reviewed: "Reviewed",
