@@ -24,6 +24,7 @@ import {
   BarChart3,
   Gauge,
   Trophy,
+  Wand2,
 } from "lucide-react";
 import { CommandPalette } from "./command-palette";
 import { MobileNav } from "./mobile-nav";
@@ -40,6 +41,7 @@ const NAV = [
   { href: "/war-room", label: "War Room", icon: Radio },
   { href: "/updates", label: "Updates", icon: Megaphone },
   { href: "/agents", label: "Agents", icon: Users },
+  { href: "/build-team", label: "Build Team", icon: Wand2 },
   { href: "/team-composer", label: "Team Composer", icon: Network },
   { href: "/skills", label: "Skills", icon: Boxes },
   { href: "/chats", label: "Conversations", icon: MessagesSquare },
@@ -60,6 +62,7 @@ const TITLES: Record<string, string> = {
   "/updates": "Updates — Communication Agent",
   "/workers": "Worker Lanes",
   "/agents": "Agents",
+  "/build-team": "Build my team",
   "/team-composer": "Team Composer",
   "/skills": "Skill Library",
   "/chats": "Conversations",

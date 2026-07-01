@@ -25,6 +25,7 @@ import {
   BarChart3,
   Gauge,
   Trophy,
+  Wand2,
 } from "lucide-react";
 
 type Item = {
@@ -82,6 +83,7 @@ export function CommandPalette({
       { group: "Navigation", label: "Skill Library", hint: "agent capabilities", icon: Boxes, run: go("/skills") },
       { group: "Navigation", label: "Conversations", icon: MessagesSquare, run: go("/chats") },
       { group: "Navigation", label: "Knowledge", hint: "project brain", icon: BookOpen, run: go("/kennis") },
+      { group: "Navigation", label: "Build Team", hint: "team-from-project wizard", icon: Wand2, run: go("/build-team") },
       { group: "Navigation", label: "KPIs", hint: "productivity · quality · speed", icon: BarChart3, run: go("/kpis") },
       { group: "Navigation", label: "Costs", hint: "usage estimates · budgets", icon: Gauge, run: go("/costs") },
       { group: "Navigation", label: "Agent Performance", hint: "leaderboard", icon: Trophy, run: go("/agent-performance") },
