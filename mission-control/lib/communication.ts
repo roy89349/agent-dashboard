@@ -13,6 +13,7 @@ import { listRecentAgentMessages, type AgentMessage } from "./agent-messages.ts"
 import { readTeams } from "./teams.ts";
 import { readAgents } from "./agents.ts";
 import { buildWarRoom } from "./war-room.ts";
+import { searchKnowledge } from "./knowledge-index.ts";
 
 export class HttpError extends Error {
   status: number;
@@ -32,6 +33,7 @@ export interface SourceRef {
   issue?: number | null;
   pr?: number | null;
   agent_id?: string | null;
+  knowledge_id?: string | null;
 }
 export interface SummarySections {
   done: SourceRef[];       // Wat is afgerond?
@@ -260,6 +262,10 @@ export function askTeam(question: string, teamId?: string | null): AskResult {
   for (const a of ctx.pending) { const s = score(a.summary); if (s) scored.push({ ref: { text: `Decision: ${clip(a.summary, 160)}`, approval_id: a.id, work_item_id: a.work_item_id, pr: a.pr, issue: a.issue }, s }); }
   for (const w of ctx.workflows) { const s = score(w.title); if (s) scored.push({ ref: { text: `Workflow: ${w.title} (${w.status})`, workflow_id: w.id, work_item_id: w.work_item_id }, s }); }
   for (const e of ctx.events) { const s = score(e.title); if (s) scored.push({ ref: { text: e.title, work_item_id: e.work_item_id, workflow_id: e.workflow_id, approval_id: e.approval_id, issue: e.issue, pr: e.pr }, s }); }
+  // consult the Knowledge Vault too (safe, access-scoped) — the project brain informs the answer
+  for (const h of safe(() => searchKnowledge(q, { team_id: teamId, limit: 4 }), [] as ReturnType<typeof searchKnowledge>)) {
+    scored.push({ ref: { text: `Knowledge: ${clip(h.item.title, 160)}`, knowledge_id: h.item.id }, s: h.score + 1 });
+  }
   const refs = scored.sort((x, y) => y.s - x.s).slice(0, 6).map((x) => x.ref);
   const answer = refs.length
     ? `Found ${refs.length} related item${refs.length > 1 ? "s" : ""}${terms.length ? ` for "${terms.slice(0, 4).join(" ")}"` : ""}. See the links below.`

@@ -19,6 +19,7 @@ const W = await import("./work-items.ts");
 const WF = await import("./workflows.ts");
 const { createApproval, getApproval } = await import("./approvals.ts");
 const { postAgentMessage } = await import("./agent-messages.ts");
+const KI = await import("./knowledge-index.ts");
 WF.ensureDefaultTemplates();
 
 // seed a realistic floor
@@ -60,6 +61,12 @@ test("askTeam does a context search and answers SHORT with links (no chat noise)
   // an unrelated question returns the graceful fallback
   const none = C.askTeam("zxqwv nonexistent topic");
   assert.equal(none.refs.length, 0);
+});
+
+test("askTeam also consults the Knowledge Vault (the project brain informs the answer)", () => {
+  KI.addKnowledgeSource({ kind: "manual", title: "Payments architecture note", content: "Stripe is the payment provider.", type: "architecture" });
+  const r = C.askTeam("how do payments work?");
+  assert.ok(r.refs.some((ref) => ref.knowledge_id && ref.text.includes("Payments")), "the knowledge item is cited with a link back to /kennis");
 });
 
 test("escalate turns a real choice into a Decision-Inbox approval (kind escalation)", () => {

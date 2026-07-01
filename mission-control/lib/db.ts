@@ -228,6 +228,29 @@ export function db(): DatabaseSync {
       created_at      TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_comm_summaries ON communication_summaries(created_at DESC);
+    -- knowledge vault: a SECURE, searchable METADATA index (never the raw secret) of project knowledge — rules,
+    -- coding standards, vision, decisions, docs, team instructions — linkable to teams/agents. content_preview is
+    -- ALWAYS redacted + secret-scrubbed; secret files (.env/keys/creds) are never indexed at all.
+    CREATE TABLE IF NOT EXISTS knowledge_items (
+      id                  TEXT PRIMARY KEY,
+      title               TEXT NOT NULL,
+      type                TEXT NOT NULL,               -- markdown|project_rules|coding_standards|…|team_instruction
+      source_path         TEXT,                        -- relative to the vault (null for manual/instruction items)
+      source_url          TEXT,
+      tags_json           TEXT,
+      project_id          TEXT,
+      team_id             TEXT,                         -- null = all teams
+      summary             TEXT,                         -- REDACTED
+      content_preview     TEXT,                         -- REDACTED + secret-scrubbed, capped
+      allowed_agents_json TEXT,                         -- [] / null = every agent may use it
+      safe_to_use         INTEGER NOT NULL DEFAULT 1,   -- 0 = a secret/sensitive content was detected → do not use
+      archived            INTEGER NOT NULL DEFAULT 0,
+      indexed_at          TEXT,
+      created_at          TEXT NOT NULL,
+      updated_at          TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_knowledge_type ON knowledge_items(type, updated_at DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_knowledge_source ON knowledge_items(source_path) WHERE source_path IS NOT NULL;
   `);
   // additive migrations for existing dbs (ADD COLUMN is idempotent-safe: errors if the column exists → ignore)
   for (const col of [

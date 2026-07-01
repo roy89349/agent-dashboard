@@ -1,14 +1,32 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { BookOpen, Search, FileText, Save, Loader2, ArrowLeft } from "lucide-react";
+import { BookOpen, Search, FileText, Save, Loader2, ArrowLeft, Brain, FolderTree } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
+import { IndexedKnowledge } from "./indexed-knowledge";
 
 type Entry = { path: string; name: string; dir: string };
 type Hit = { path: string; line: number; text: string };
 
+// Tabbed shell: the DB-indexed "project brain" (default) + the raw vault browser.
 export function KnowledgeView() {
+  const [tab, setTab] = useState<"indexed" | "vault">("indexed");
+  const btn = (t: "indexed" | "vault", icon: React.ReactNode, txt: string) => (
+    <button onClick={() => setTab(t)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${tab === t ? "bg-white/10 text-white" : "text-white/50 hover:bg-white/5"}`}>{icon} {txt}</button>
+  );
+  return (
+    <div className="flex min-h-[calc(100dvh-3.5rem)] flex-col">
+      <div className="flex items-center gap-1 border-b border-white/10 px-3 py-2">
+        {btn("indexed", <Brain className="size-3.5" />, "Project brain")}
+        {btn("vault", <FolderTree className="size-3.5" />, "Vault browser")}
+      </div>
+      <div className="min-h-0 flex-1">{tab === "indexed" ? <IndexedKnowledge /> : <VaultBrowser />}</div>
+    </div>
+  );
+}
+
+function VaultBrowser() {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [root, setRoot] = useState<string | null>(null);
   const [tree, setTree] = useState<Entry[]>([]);
@@ -99,7 +117,7 @@ export function KnowledgeView() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] max-md:h-[calc(100dvh-8.5rem)]">
+    <div className="flex h-[calc(100dvh-6.5rem)] max-md:h-[calc(100dvh-11.5rem)]">
       {/* left: search + tree — full width on phones, fixed rail on desktop */}
       <div className={`${mobileView === "editor" ? "hidden" : "flex"} w-full shrink-0 flex-col border-r border-white/10 sm:flex sm:w-72`}>
         <div className="flex items-center gap-2 border-b border-white/10 px-3">

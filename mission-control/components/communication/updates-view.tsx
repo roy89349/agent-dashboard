@@ -163,6 +163,7 @@ function RefLine({ r, repo }: { r: SourceRef; repo: string | null }) {
   if (r.work_item_id) links.push({ href: "/work-items", label: "task" });
   if (r.workflow_id) links.push({ href: "/workflows", label: "workflow" });
   if (r.approval_id) links.push({ href: "/approvals", label: "decision" });
+  if (r.knowledge_id) links.push({ href: "/kennis", label: "knowledge" });
   if (r.issue != null && gh(r.issue, "issues")) links.push({ href: gh(r.issue, "issues")!, label: `#${r.issue}`, ext: true });
   if (r.pr != null && gh(r.pr, "pull")) links.push({ href: gh(r.pr, "pull")!, label: `PR #${r.pr}`, ext: true });
   return (

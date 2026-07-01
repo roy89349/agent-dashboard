@@ -199,3 +199,13 @@ export function searchNotes(query: unknown): SearchHit[] {
   }
   return hits;
 }
+
+// ── Knowledge INDEX (DB-backed metadata store) — additive to the vault reader above. Core lives in
+// lib/knowledge-index.ts (no "server-only", so it is unit-testable); re-exported here per the service naming.
+// (vaultRoot/vaultConfigured are intentionally NOT re-exported — this module already defines them.)
+export {
+  addKnowledgeSource, listKnowledgeItems, getKnowledgeItem, searchKnowledge, updateKnowledgeItem,
+  archiveKnowledgeItem, validateKnowledgeSafety, knowledgeForAgent, knowledgeForTeam, ensureDefaultInstructions,
+  isIndexablePath, hasSecretContent, scrubSecrets, agentMayUse, knowledgeStatusOf, KNOWLEDGE_TYPES,
+} from "./knowledge-index.ts";
+export type { KnowledgeItem, KnowledgeType, KnowledgeFilter, KnowledgeHit, SafetyVerdict, AddInput } from "./knowledge-index.ts";
