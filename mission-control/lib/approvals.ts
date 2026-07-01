@@ -95,6 +95,12 @@ export function listApprovals(limit = 100): Approval[] {
   const rows = db().prepare("SELECT * FROM approvals ORDER BY created_at DESC LIMIT ?").all(n) as Approval[];
   return rows.map(maybeExpire);
 }
+/** READ-ONLY variant: recent approvals WITHOUT the lazy-expire write side effect. Callers that only display
+ *  (e.g. the War Room GET) must not mutate; compute effective status in-memory if needed. */
+export function listApprovalsRO(limit = 100): Approval[] {
+  const n = Math.min(500, Math.max(1, Math.trunc(limit)));
+  return db().prepare("SELECT * FROM approvals ORDER BY created_at DESC LIMIT ?").all(n) as Approval[];
+}
 /** Bulk-expire overdue pending approvals (call from a poller / before listing). Returns count. */
 export function expireApprovals(): number {
   const r = db()

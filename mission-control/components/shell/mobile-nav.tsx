@@ -15,7 +15,7 @@ import type { FleetStatus } from "@/lib/types";
 const PRIMARY = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/approvals", label: "Decisions", icon: Inbox, badge: true },
-  { href: "/workers", label: "War Room", icon: Radio },
+  { href: "/war-room", label: "War Room", icon: Radio },
   { href: "/agents", label: "Agents", icon: Users },
 ];
 
@@ -23,6 +23,7 @@ const MORE = [
   { href: "/work-items", label: "Work Items", icon: Layers, hint: "tasks + handoffs" },
   { href: "/workflows", label: "Workflows", icon: GitBranch, hint: "multi-role pipelines" },
   { href: "/manager", label: "Manager", icon: Split, hint: "split big tasks into subtasks" },
+  { href: "/workers", label: "Worker Lanes", icon: Radio, hint: "live build slots" },
   { href: "/team-composer", label: "Team Composer", icon: Network, hint: "compose your AI team" },
   { href: "/skills", label: "Skill Library", icon: Boxes, hint: "agent capabilities" },
   { href: "/", label: "Tasks", icon: ListTodo, hint: "the kanban board" },

@@ -318,6 +318,12 @@ export function getWorkflow(id: string): WorkflowDetail | null {
   return { workflow, steps: stepsOf(id), events };
 }
 
+/** Recent workflow events across ALL workflows (newest first) — for the War Room timeline. */
+export function listRecentWorkflowEvents(limit = 100): WorkflowEvent[] {
+  const n = Math.min(500, Math.max(1, Math.trunc(limit)));
+  return (db().prepare("SELECT * FROM workflow_events ORDER BY id DESC LIMIT ?").all(n) as Record<string, unknown>[]).map(rowToEvent);
+}
+
 // ── low-level setters (validated) ──
 function setWorkflow(id: string, patch: { status?: WorkflowStatus; current_step_id?: string | null; title?: string }): void {
   const cur = workflowRow(id);
