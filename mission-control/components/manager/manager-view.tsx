@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Boxes, Plus, RefreshCw, Trash2, Sparkles, Settings2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
+import { PageHeader, SectionLabel } from "@/components/ui/glass";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ManagerStatusBadge, STATUS_LABEL } from "./manager-badges";
 import { ManagerDetailDrawer } from "./manager-detail";
@@ -61,21 +63,26 @@ export function ManagerView() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-5 pb-24 sm:px-6 md:pb-5">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300"><Boxes className="size-[18px]" /></div>
-        <div>
-          <h2 className="text-base font-semibold text-white">Manager</h2>
-          <p className="text-xs text-white/40">{M.loaded ? `${M.plans.length} decomposition plans — split big tasks safely` : "Loading…"}</p>
-        </div>
-        <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={() => setCfgOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5"><Settings2 className="size-3.5" /> <span className="hidden sm:inline">Limits</span></button>
-          <button onClick={() => M.load()} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5"><RefreshCw className="size-3.5" /> <span className="hidden sm:inline">Refresh</span></button>
-          <button onClick={() => setCreating(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-black hover:bg-emerald-400"><Plus className="size-4" /> New</button>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-5"
+        title={
+          <span className="inline-flex items-center gap-2.5">
+            <span className="glass-card grid size-9 place-items-center rounded-xl text-emerald-300"><Boxes className="size-[18px]" /></span>
+            Manager
+          </span>
+        }
+        subtitle={M.loaded ? `${M.plans.length} decomposition plans — split big tasks safely, you sign off before anything is built` : "Loading…"}
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="h-10" onClick={() => setCfgOpen(true)}><Settings2 className="size-3.5" /> <span className="hidden sm:inline">Limits</span></Button>
+            <Button variant="outline" size="sm" className="h-10" onClick={() => M.load()}><RefreshCw className="size-3.5" /> <span className="hidden sm:inline">Refresh</span></Button>
+            <Button variant="accent" size="sm" className="h-10 px-3.5" onClick={() => setCreating(true)}><Plus className="size-4" /> New</Button>
+          </>
+        }
+      />
 
       {!M.loaded ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-24 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />)}</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <div key={i} className="glass-card h-24 animate-pulse" />)}</div>
       ) : M.plans.length === 0 ? (
         <EmptyState icon={Boxes} title="No decomposition plans yet" hint="Give the Manager a big task — it proposes subtasks, roles and a workflow; you approve before anything is created." />
       ) : (
@@ -83,7 +90,7 @@ export function ManagerView() {
           {groups.map((g) => (
             <section key={g.status}>
               <div className="mb-2 flex items-center gap-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/45">{STATUS_LABEL[g.status]}</h3>
+                <SectionLabel className={g.status === "proposed" ? "text-amber-300/80" : undefined}>{STATUS_LABEL[g.status]}</SectionLabel>
                 <span className="rounded-full bg-white/5 px-1.5 text-[11px] text-white/40">{g.items.length}</span>
                 <span className="h-px flex-1 bg-white/10" />
               </div>
@@ -91,7 +98,13 @@ export function ManagerView() {
                 {g.items.map((p) => {
                   const highs = p.plan.subtasks.filter((t) => t.risk_level === "high" || t.risk_level === "critical").length;
                   return (
-                    <article key={p.id} onClick={() => setSelected(p.id)} className={`cursor-pointer rounded-2xl border p-4 transition-colors ${selected === p.id ? "border-emerald-400/60 bg-emerald-500/[0.06]" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}>
+                    <article
+                      key={p.id}
+                      onClick={() => setSelected(p.id)}
+                      className={`glass-card glass-hover cursor-pointer p-4 ${
+                        selected === p.id ? "glow-ok" : g.status === "proposed" ? "glow-warn" : ""
+                      }`}
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <p className="min-w-0 text-sm font-medium leading-snug text-white/90">{p.plan.goal}</p>
                         <ManagerStatusBadge status={p.status} />
@@ -124,10 +137,10 @@ export function ManagerView() {
                 <option value="" className="bg-[#0d1322]">Workflow (optional)…</option>
                 {M.templates.map((t) => <option key={t.id} value={t.id} className="bg-[#0d1322]">{t.name}</option>)}
               </select>
-              <button onClick={seed} disabled={!templateId} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/15 px-2.5 text-xs text-white/70 hover:bg-white/5 disabled:opacity-40"><Sparkles className="size-3.5" /> Seed subtasks</button>
+              <Button variant="outline" size="sm" className="h-9" onClick={seed} disabled={!templateId}><Sparkles className="size-3.5" /> Seed subtasks</Button>
             </div>
 
-            <div>
+            <div className="glass-inset rounded-xl p-2.5">
               <div className="mb-1.5 flex items-center justify-between">
                 <p className="text-xs font-medium text-white/50">Subtasks <span className="text-white/30">({rows.length}/{max})</span></p>
                 <button onClick={() => rows.length < max && setRows([...rows, { title: "", role: "", risk: "medium", deps: "" }])} disabled={rows.length >= max} className="text-xs text-emerald-300 hover:text-emerald-200 disabled:opacity-40">+ add</button>
@@ -152,7 +165,7 @@ export function ManagerView() {
               <p className="mt-1 text-[10px] text-white/30">High/critical subtasks become plan-only work items — they need their own plan approval before building.</p>
             </div>
 
-            <button onClick={create} className="h-10 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400">Propose for approval</button>
+            <Button variant="accent" className="h-11 w-full rounded-xl" onClick={create}>Propose for approval</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -183,7 +196,7 @@ function ConfigForm({ config, onSave }: { config: NonNullable<ReturnType<typeof 
       <label className="flex items-center gap-2 text-sm text-white/70">
         <input type="checkbox" checked={issues} onChange={(e) => setIssues(e.target.checked)} /> Allow creating agent-ready GitHub issues (off = work items only)
       </label>
-      <button onClick={() => onSave({ max_subtasks_per_plan: subs, max_depth: depth, allow_github_issues: issues })} className="h-10 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400">Save limits</button>
+      <Button variant="accent" className="h-11 w-full rounded-xl" onClick={() => onSave({ max_subtasks_per_plan: subs, max_depth: depth, allow_github_issues: issues })}>Save limits</Button>
     </div>
   );
 }

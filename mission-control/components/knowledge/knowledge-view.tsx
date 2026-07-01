@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { BookOpen, Search, FileText, Save, Loader2, ArrowLeft, Brain, FolderTree } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
+import { EmptyState } from "@/components/ui/empty-state";
 import { IndexedKnowledge } from "./indexed-knowledge";
 
 type Entry = { path: string; name: string; dir: string };
@@ -13,13 +14,15 @@ type Hit = { path: string; line: number; text: string };
 export function KnowledgeView() {
   const [tab, setTab] = useState<"indexed" | "vault">("indexed");
   const btn = (t: "indexed" | "vault", icon: React.ReactNode, txt: string) => (
-    <button onClick={() => setTab(t)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${tab === t ? "bg-white/10 text-white" : "text-white/50 hover:bg-white/5"}`}>{icon} {txt}</button>
+    <button onClick={() => setTab(t)} className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === t ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" : "text-white/50 hover:bg-white/5 hover:text-white/75"}`}>{icon} {txt}</button>
   );
   return (
     <div className="flex min-h-[calc(100dvh-3.5rem)] flex-col">
-      <div className="flex items-center gap-1 border-b border-white/10 px-3 py-2">
-        {btn("indexed", <Brain className="size-3.5" />, "Project brain")}
-        {btn("vault", <FolderTree className="size-3.5" />, "Vault browser")}
+      <div className="flex items-center border-b border-white/10 px-3 py-2">
+        <div className="glass-card inline-flex items-center gap-1 rounded-xl p-1">
+          {btn("indexed", <Brain className="size-3.5" />, "Project brain")}
+          {btn("vault", <FolderTree className="size-3.5" />, "Vault browser")}
+        </div>
       </div>
       <div className="min-h-0 flex-1">{tab === "indexed" ? <IndexedKnowledge /> : <VaultBrowser />}</div>
     </div>
@@ -102,16 +105,11 @@ function VaultBrowser() {
   if (configured === false) {
     return (
       <div className="p-4">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-14 text-center">
-          <BookOpen className="mx-auto size-8 text-emerald-400/60" />
-          <h2 className="mt-3 text-base font-semibold">No knowledge vault configured</h2>
-          <p className="mx-auto mt-1 max-w-md text-sm text-white/40">
-            Set <code className="text-white/60">VAULT_DIR</code> in{" "}
-            <code className="text-white/60">config.local.env</code> and{" "}
-            <code className="text-white/60">mission-control/.env.local</code> to an Obsidian/markdown
-            folder, then restart. Agents will use it as context and you can browse/search it here.
-          </p>
-        </div>
+        <EmptyState
+          icon={BookOpen}
+          title="No knowledge vault configured"
+          hint="Set VAULT_DIR in config.local.env and mission-control/.env.local to an Obsidian/markdown folder, then restart. Agents will use it as context and you can browse/search it here."
+        />
       </div>
     );
   }
@@ -120,14 +118,16 @@ function VaultBrowser() {
     <div className="flex h-[calc(100dvh-6.5rem)] max-md:h-[calc(100dvh-11.5rem)]">
       {/* left: search + tree — full width on phones, fixed rail on desktop */}
       <div className={`${mobileView === "editor" ? "hidden" : "flex"} w-full shrink-0 flex-col border-r border-white/10 sm:flex sm:w-72`}>
-        <div className="flex items-center gap-2 border-b border-white/10 px-3">
-          <Search className="size-4 text-white/40" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search notes…"
-            className="h-11 w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
-          />
+        <div className="p-2 pb-1">
+          <div className="glass-card flex items-center gap-2 px-3 transition-colors focus-within:border-emerald-500/40">
+            <Search className="size-4 shrink-0 text-white/40" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search notes…"
+              className="h-11 w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
+            />
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-1.5">
           {hits !== null ? (
@@ -138,7 +138,7 @@ function VaultBrowser() {
                 <button
                   key={i}
                   onClick={() => openNote(h.path)}
-                  className="block w-full rounded-lg px-2.5 py-1.5 text-left hover:bg-white/5"
+                  className="block w-full rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-white/5"
                 >
                   <span className="block truncate text-xs font-medium text-white/80">{h.path}:{h.line}</span>
                   <span className="block truncate text-[11px] text-white/40">{h.text}</span>
@@ -153,8 +153,8 @@ function VaultBrowser() {
                 key={e.path}
                 onClick={() => openNote(e.path)}
                 title={e.path}
-                className={`flex w-full items-center gap-2 truncate rounded-lg px-2.5 py-1.5 text-left text-sm ${
-                  e.path === openPath ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                className={`flex w-full items-center gap-2 truncate rounded-lg px-2.5 py-2.5 text-left text-sm transition-colors ${
+                  e.path === openPath ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-white/60 hover:bg-white/5"
                 }`}
               >
                 <FileText className="size-3.5 shrink-0 text-white/30" />

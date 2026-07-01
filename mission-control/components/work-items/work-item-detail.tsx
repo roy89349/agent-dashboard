@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { GitPullRequest, Bug, GitBranch, ExternalLink, Send } from "lucide-react";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/glass";
 import { AgentAvatar, RoleChip } from "@/components/fleet/agent-meta";
 import { RiskBadge } from "@/components/skills/risk-badge";
 import { StateBadge, PriorityBadge, ModeBadge } from "./badges";
@@ -107,7 +109,7 @@ export function WorkItemDetailDrawer({
               )}
 
               {/* assignment + meta */}
-              <div className="rounded-xl border border-white/10 bg-black/20 px-3.5">
+              <div className="glass-inset px-3.5">
                 <Row label="Assigned">
                   {wi.assigned_agent_id || wi.assigned_role ? (
                     <span className="inline-flex items-center gap-1.5">
@@ -126,7 +128,7 @@ export function WorkItemDetailDrawer({
               {/* quick state + mode control */}
               <div className="flex flex-wrap gap-4">
                 <div className="min-w-0 flex-1">
-                  <p className="mb-1.5 text-xs text-white/45">State</p>
+                  <SectionLabel className="mb-1.5">State</SectionLabel>
                   <div className="flex flex-wrap gap-1.5">
                     {WORK_ITEM_STATES.map((s) => (
                       <button key={s} onClick={() => setState(s)} className={`rounded-lg border px-2.5 py-1 text-xs capitalize ${wi.state === s ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-200" : "border-white/10 text-white/60 hover:bg-white/5"}`}>{s.replace("_", " ")}</button>
@@ -134,7 +136,7 @@ export function WorkItemDetailDrawer({
                   </div>
                 </div>
                 <div>
-                  <p className="mb-1.5 text-xs text-white/45">Mode</p>
+                  <SectionLabel className="mb-1.5">Mode</SectionLabel>
                   <select value={wi.mode} onChange={async (e) => { const r = await patchItem(wi.id, { mode: e.target.value as WorkItemMode }); if (r) { toast.success(`Mode → ${e.target.value}`); refresh(); } }} className={inputCls}>
                     {WORK_ITEM_MODES.map((m) => <option key={m} value={m} className="bg-[#0d1322]">{m.replace(/_/g, " ")}</option>)}
                   </select>
@@ -149,25 +151,33 @@ export function WorkItemDetailDrawer({
 
               {/* parent / children */}
               {(wi.parent_task_id || (detail?.children.length ?? 0) > 0) && (
-                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                  {wi.parent_task_id && <button onClick={() => onSelectItem(wi.parent_task_id!)} className="mb-1.5 inline-flex items-center gap-1 text-xs text-white/60 hover:text-white"><GitBranch className="size-3" /> parent task</button>}
-                  {(detail?.children ?? []).map((c) => (
-                    <button key={c.id} onClick={() => onSelectItem(c.id)} className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs text-white/70 hover:bg-white/5">
-                      <StateBadge state={c.state} /> <span className="truncate">{c.title}</span>
-                    </button>
-                  ))}
+                <div className="glass-card p-3">
+                  <SectionLabel className="mb-2">Related tasks</SectionLabel>
+                  {wi.parent_task_id && <button onClick={() => onSelectItem(wi.parent_task_id!)} className="mb-1.5 inline-flex min-h-8 items-center gap-1.5 rounded-lg px-1.5 text-xs font-medium text-indigo-300 hover:bg-white/5 hover:text-indigo-200"><GitBranch className="size-3" /> parent task</button>}
+                  {(detail?.children.length ?? 0) > 0 && (
+                    <div className="ml-2 space-y-0.5 border-l border-white/10 pl-3">
+                      {(detail?.children ?? []).map((c) => (
+                        <button key={c.id} onClick={() => onSelectItem(c.id)} className="relative flex w-full min-h-8 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs text-white/70 hover:bg-white/5">
+                          <span className="absolute -left-3 top-1/2 h-px w-2.5 bg-white/10" aria-hidden />
+                          <StateBadge state={c.state} /> <span className="truncate">{c.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* handoff timeline */}
               <div>
-                <p className="mb-2 text-xs font-medium text-white/50">Handoff trail</p>
-                <HandoffTimeline messages={detail?.messages ?? []} agentName={agentName} />
+                <SectionLabel className="mb-2">Handoff trail</SectionLabel>
+                <div className="glass-inset p-3.5">
+                  <HandoffTimeline messages={detail?.messages ?? []} agentName={agentName} />
+                </div>
               </div>
 
               {/* record a handoff */}
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                <p className="mb-2 text-xs font-medium text-white/50">Record a handoff / blocker / question</p>
+              <div className="glass-inset p-3.5">
+                <SectionLabel className="mb-2">Record a handoff / blocker / question</SectionLabel>
                 <div className="grid grid-cols-2 gap-2">
                   <select value={hoFrom} onChange={(e) => setHoFrom(e.target.value)} className={inputCls}>
                     <option value="" className="bg-[#0d1322]">from…</option>
@@ -186,9 +196,9 @@ export function WorkItemDetailDrawer({
                 <label className="mt-2 flex items-center gap-2 text-xs text-white/60">
                   <input type="checkbox" checked={hoHuman} onChange={(e) => setHoHuman(e.target.checked)} /> needs a human decision (creates an approval)
                 </label>
-                <button onClick={sendHandoff} className="mt-2 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400">
+                <Button variant="accent" className="mt-2 h-11 w-full rounded-xl font-semibold" onClick={sendHandoff}>
                   <Send className="size-4" /> Record
-                </button>
+                </Button>
               </div>
             </div>
           )}

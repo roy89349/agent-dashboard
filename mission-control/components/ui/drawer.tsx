@@ -27,7 +27,7 @@ export const DrawerContent = React.forwardRef<
         "fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col rounded-t-2xl border-t border-white/10",
         // desktop: right side-panel, full height
         "sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:h-dvh sm:w-[30rem] sm:rounded-t-none sm:rounded-l-2xl sm:border-l sm:border-t-0",
-        "bg-[#0d1322] text-[#e6eaf2] shadow-2xl shadow-black/50",
+        "glass-overlay text-[#e6eaf2]",
         "[animation:mc-drawer-up_0.22s_ease-out] sm:[animation:mc-drawer-right_0.24s_ease-out]",
         className,
       )}

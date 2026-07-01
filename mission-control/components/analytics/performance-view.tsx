@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Trophy, RefreshCw, CheckCircle2, Clock, Users, Boxes, Ban } from "lucide-react";
 import { AgentAvatar, RoleChip } from "@/components/fleet/agent-meta";
-import { Bars, SourceTag } from "./parts";
+import { SourceTag } from "./parts";
 import type { PerformanceReport } from "@/lib/agent-performance";
 
 export function PerformanceView() {
@@ -19,25 +19,38 @@ export function PerformanceView() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-5 pb-24 sm:px-6 md:pb-5">
       <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300"><Trophy className="size-[18px]" /></div>
-        <div><h2 className="text-base font-semibold text-white">Agent performance</h2><p className="text-xs text-white/40">Success · duration · blockers · collaboration <SourceTag source="derived" /></p></div>
-        <button onClick={load} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5"><RefreshCw className="size-3.5" /></button>
+        <div className="glass-card grid size-10 place-items-center text-emerald-300"><Trophy className="size-[18px]" /></div>
+        <div><h2 className="text-base font-semibold tracking-tight text-white">Agent performance</h2><p className="text-xs text-white/40">Success · duration · blockers · collaboration <SourceTag source="derived" /></p></div>
+        <button onClick={load} aria-label="Refresh" className="glass-card glass-hover ml-auto grid size-10 place-items-center text-white/50 hover:text-white/80"><RefreshCw className="size-4" /></button>
       </div>
 
       {!rep ? <p className="text-sm text-white/40">Loading…</p> : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
           {/* leaderboard */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">Leaderboard · tasks done</p>
+          <section className="glass p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/45">Leaderboard · tasks done</p>
             {active.length === 0 ? <p className="text-xs text-white/30">No completed tasks yet.</p> : (
-              <Bars rows={active.slice(0, 12).map((a) => ({ label: a.name, value: a.tasks_done }))} />
+              <div className="space-y-1.5">
+                {[...active].sort((a, b) => b.tasks_done - a.tasks_done).slice(0, 12).map((a, i) => {
+                  const max = Math.max(1, ...active.map((x) => x.tasks_done));
+                  return (
+                    <div key={a.id} className="glass-card flex items-center gap-2.5 px-2.5 py-2">
+                      <span className={`w-5 shrink-0 text-center text-xs font-semibold tabular-nums ${i === 0 ? "text-amber-300" : i < 3 ? "text-white/70" : "text-white/35"}`}>{i + 1}</span>
+                      <AgentAvatar name={a.name} role={a.role} className="size-6 shrink-0 text-[10px]" />
+                      <span className="min-w-0 flex-1 truncate text-xs text-white/75" title={a.name}>{a.name}</span>
+                      <span className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-black/25 sm:block"><span className="block h-full rounded-full bg-gradient-to-r from-emerald-500/60 to-indigo-500/40" style={{ width: `${Math.max(a.tasks_done ? 6 : 0, (a.tasks_done / max) * 100)}%` }} /></span>
+                      <span className="shrink-0 text-xs font-medium tabular-nums text-emerald-300">{a.tasks_done}</span>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </section>
 
           {/* per-agent cards */}
           <section className="space-y-2">
             {(active.length ? active : rep.agents).map((a) => (
-              <article key={a.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+              <article key={a.id} className="glass-card glass-hover p-3">
                 <button onClick={() => setOpen(open === a.id ? null : a.id)} className="flex w-full items-center gap-2 text-left">
                   <AgentAvatar name={a.name} role={a.role} className="size-6 text-[10px]" />
                   <span className="min-w-0"><span className="text-sm font-medium text-white/90">{a.name}</span> <RoleChip role={a.role} /></span>

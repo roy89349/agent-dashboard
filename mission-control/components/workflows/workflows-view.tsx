@@ -3,9 +3,12 @@
 // and open the visual detail/stepper. Additive over work items + approvals — a workflow tracks multi-role work.
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { GitBranch, Plus, RefreshCw, ArrowRight } from "lucide-react";
+import { GitBranch, Plus, RefreshCw, ArrowRight, ShieldCheck } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/glass";
 import { RoleChip } from "@/components/fleet/agent-meta";
 import { WorkflowStatusBadge, WF_LABEL } from "./workflow-badges";
 import { WorkflowDetailDrawer } from "./workflow-detail";
@@ -39,20 +42,29 @@ export function WorkflowsView({ initialWorkItemId }: { initialWorkItemId?: strin
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-5 pb-24 sm:px-6 md:pb-5">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300"><GitBranch className="size-[18px]" /></div>
-        <div>
-          <h2 className="text-base font-semibold text-white">Workflows</h2>
-          <p className="text-xs text-white/40">{W.loaded ? `${W.workflows.length} pipelines — multi-role, traceable, gated` : "Loading…"}</p>
-        </div>
-        <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={() => W.load()} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5"><RefreshCw className="size-3.5" /> <span className="hidden sm:inline">Refresh</span></button>
-          <button onClick={() => setCreating(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-black hover:bg-emerald-400"><Plus className="size-4" /> New</button>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-4"
+        title={
+          <span className="inline-flex items-center gap-2.5">
+            <span className="glass-card grid size-9 place-items-center text-emerald-300"><GitBranch className="size-[18px]" /></span>
+            Workflows
+          </span>
+        }
+        subtitle={W.loaded ? `${W.workflows.length} pipelines — multi-role, traceable, gated` : "Loading…"}
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="h-11 sm:h-8" onClick={() => W.load()}>
+              <RefreshCw className="size-3.5" /> <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            <Button variant="accent" className="h-11 sm:h-9 px-3" onClick={() => setCreating(true)}>
+              <Plus className="size-4" /> New
+            </Button>
+          </>
+        }
+      />
 
       {!W.loaded ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-24 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />)}</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <div key={i} className="glass-card h-24 animate-pulse" />)}</div>
       ) : W.workflows.length === 0 ? (
         <EmptyState icon={GitBranch} title="No workflows yet" hint="Start one from a template — Build feature, Fix bug, Improve UI, Audit project, Excel automation, Launch SaaS." />
       ) : (
@@ -66,7 +78,7 @@ export function WorkflowsView({ initialWorkItemId }: { initialWorkItemId?: strin
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {g.items.map((w) => (
-                  <article key={w.id} onClick={() => setSelected(w.id)} className={`cursor-pointer rounded-2xl border p-4 transition-colors ${selected === w.id ? "border-emerald-400/60 bg-emerald-500/[0.06]" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}>
+                  <article key={w.id} onClick={() => setSelected(w.id)} className={`glass-card glass-hover cursor-pointer p-4 ${selected === w.id ? "glow-ok" : ""}`}>
                     <div className="flex items-start justify-between gap-2">
                       <p className="min-w-0 text-sm font-medium leading-snug text-white/90">{w.title}</p>
                       <WorkflowStatusBadge status={w.status} />
@@ -93,28 +105,28 @@ export function WorkflowsView({ initialWorkItemId }: { initialWorkItemId?: strin
         <DialogContent>
           <DialogHeader><DialogTitle>Start a workflow</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <select autoFocus value={tpl} onChange={(e) => setTpl(e.target.value)} className="h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-emerald-500/40">
+            <select autoFocus value={tpl} onChange={(e) => setTpl(e.target.value)} className="h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-emerald-500/40">
               <option value="" className="bg-[#0d1322]">Choose a template…</option>
               {W.templates.map((t) => <option key={t.id} value={t.id} className="bg-[#0d1322]">{t.name}</option>)}
             </select>
             {preview && (
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="glass-inset p-3">
                 {preview.description && <p className="mb-2 text-xs text-white/50">{preview.description}</p>}
                 <div className="flex flex-wrap items-center gap-1">
                   {preview.steps.map((s, i) => (
                     <span key={i} className="inline-flex items-center gap-1">
-                      <span className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-1.5 py-0.5 text-[11px] text-white/70">
-                        {s.name}{s.role ? <RoleChip role={s.role} /> : null}{s.approval_required ? <span className="text-amber-300">🔓</span> : null}
+                      <span className={`glass-card inline-flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[11px] text-white/70 ${s.approval_required ? "glow-warn" : ""}`}>
+                        {s.name}{s.role ? <RoleChip role={s.role} /> : null}{s.approval_required ? <ShieldCheck className="size-3 text-amber-300" /> : null}
                       </span>
-                      {i < preview.steps.length - 1 && <ArrowRight className="size-3 text-white/25" />}
+                      {i < preview.steps.length - 1 && <ArrowRight className="size-3 shrink-0 text-white/25" />}
                     </span>
                   ))}
                 </div>
               </div>
             )}
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="title (optional — defaults to the template name)" className="h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40" />
-            <input value={wiId} onChange={(e) => setWiId(e.target.value)} placeholder="link a work item id (optional)" className="h-9 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40" />
-            <button onClick={create} disabled={!tpl} className="h-10 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">Start workflow</button>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="title (optional — defaults to the template name)" />
+            <Input value={wiId} onChange={(e) => setWiId(e.target.value)} placeholder="link a work item id (optional)" />
+            <Button variant="accent" className="h-11 w-full rounded-xl font-semibold" onClick={create} disabled={!tpl}>Start workflow</Button>
           </div>
         </DialogContent>
       </Dialog>

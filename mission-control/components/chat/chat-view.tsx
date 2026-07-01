@@ -151,7 +151,7 @@ export function ChatView() {
         <div onClick={() => setMobileListOpen(false)} className="absolute inset-0 z-10 bg-black/50 sm:hidden" />
       )}
       {/* conversation list — static rail on desktop, slide-over on phones */}
-      <div className={`${mobileListOpen ? "flex" : "hidden"} absolute inset-y-0 left-0 z-20 w-64 shrink-0 flex-col border-r border-white/10 bg-[#0d1322] p-2 sm:static sm:flex sm:bg-transparent`}>
+      <div className={`${mobileListOpen ? "flex" : "hidden"} absolute inset-y-0 left-0 z-20 w-64 shrink-0 flex-col border-r border-white/10 bg-[#0d1322]/90 p-2 backdrop-blur-xl max-sm:shadow-[0_16px_48px_rgba(0,0,0,0.5)] sm:static sm:flex sm:bg-transparent sm:backdrop-blur-none`}>
         <Button variant="secondary" size="sm" className="mb-2 w-full" onClick={() => newConv()}>
           <Plus className="size-4" /> New conversation
         </Button>
@@ -163,8 +163,8 @@ export function ChatView() {
               <button
                 key={c.id}
                 onClick={() => selectConv(c.id)}
-                className={`flex w-full items-center gap-2 truncate rounded-lg px-2.5 py-2 text-left text-sm ${
-                  c.id === activeId ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                className={`flex w-full items-center gap-2 truncate rounded-lg px-2.5 py-2.5 text-left text-sm transition-colors ${
+                  c.id === activeId ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-white/60 hover:bg-white/5"
                 }`}
               >
                 <MessagesSquare className="size-3.5 shrink-0 text-white/30" />
@@ -198,8 +198,8 @@ export function ChatView() {
           {messages.length === 0 ? (
             <div className="grid h-full place-items-center text-center">
               <div>
-                <Bot className="mx-auto size-8 text-indigo-400/60" />
-                <p className="mt-3 text-sm text-white/50">Orchestrator chat</p>
+                <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-indigo-500/10 text-indigo-300"><Bot className="size-6" /></div>
+                <p className="mt-3 text-sm font-medium text-white/70">Orchestrator chat</p>
                 <p className="mx-auto mt-1 max-w-sm text-xs text-white/30">
                   Ask about the fleet, have tasks planned, or consult the codebase + your Obsidian vault. Conversations are saved.
                 </p>
@@ -215,7 +215,7 @@ export function ChatView() {
                 )}
                 <div
                   className={`max-w-[75%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm ${
-                    m.role === "user" ? "bg-emerald-500/15 text-white" : "bg-white/[0.04] text-white/90"
+                    m.role === "user" ? "border border-emerald-500/20 bg-emerald-500/15 text-white" : "border border-white/[0.06] bg-white/[0.04] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                   }`}
                 >
                   {m.content || (m.pending ? <Loader2 className="size-4 animate-spin text-white/40" /> : "")}
@@ -231,7 +231,7 @@ export function ChatView() {
         </div>
 
         <div className="border-t border-white/10 p-3">
-          <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2">
+          <div className="glass-card flex items-end gap-2 rounded-2xl p-2 transition-colors focus-within:border-emerald-500/40">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}

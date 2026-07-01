@@ -8,10 +8,17 @@ import { StepStatusBadge } from "./workflow-badges";
 import type { WorkflowStep, WorkflowStepStatus } from "@/lib/workflows";
 
 const DOT: Record<WorkflowStepStatus, string> = {
-  queued: "border-white/25 bg-white/5", running: "border-indigo-400 bg-indigo-500/30 animate-pulse",
+  queued: "border-white/25 bg-white/5", running: "border-emerald-400 bg-emerald-500/30 animate-pulse",
   blocked: "border-red-400 bg-red-500/30", waiting_user: "border-amber-400 bg-amber-500/30",
-  review: "border-teal-400 bg-teal-500/30", failed: "border-red-400 bg-red-500/40",
+  review: "border-indigo-400 bg-indigo-500/30", failed: "border-red-400 bg-red-500/40",
   done: "border-emerald-400 bg-emerald-500/40", skipped: "border-white/20 bg-white/5",
+};
+
+// glass node surface per step status — blocked / waiting-on-you / failed states stand out with quiet glows
+const NODE: Partial<Record<WorkflowStepStatus, string>> = {
+  waiting_user: "glow-warn border-amber-400/40 bg-amber-500/[0.05]",
+  blocked: "glow-warn border-amber-400/40 bg-amber-500/[0.05]",
+  failed: "glow-danger border-red-500/40 bg-red-500/[0.05]",
 };
 
 export function WorkflowStepper({
@@ -31,15 +38,15 @@ export function WorkflowStepper({
         const last = i === steps.length - 1;
         return (
           <li key={s.id} className="relative flex gap-3 pb-3">
-            {!last && <span className="absolute left-[11px] top-6 h-full w-px bg-white/10" />}
+            {!last && <span aria-hidden className="absolute left-[11px] top-6 h-full w-px bg-gradient-to-b from-white/15 to-white/5" />}
             <span className={`z-10 mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border ${DOT[s.status] ?? DOT.queued}`}>
               <span className="text-[10px] font-semibold tabular-nums text-white/70">{i + 1}</span>
             </span>
-            <div className={`min-w-0 flex-1 rounded-xl border px-3 py-2 ${isCurrent ? "border-emerald-400/40 bg-emerald-500/[0.05]" : "border-white/10 bg-white/[0.02]"}`}>
+            <div className={`min-w-0 flex-1 rounded-xl border px-3 py-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] backdrop-blur-[10px] ${NODE[s.status] ?? (isCurrent ? "border-emerald-400/40 bg-emerald-500/[0.05]" : "border-white/10 bg-white/[0.03]")}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium text-white/90">{s.name}</p>
                 <StepStatusBadge status={s.status} />
-                {s.approval_required && <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 px-1.5 text-[10px] text-amber-300"><ShieldCheck className="size-3" /> approval</span>}
+                {s.approval_required && <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-px text-[10px] text-amber-300"><ShieldCheck className="size-3" /> approval gate</span>}
                 {s.max_attempts > 1 && <span className="text-[10px] text-white/40 tabular-nums">try {s.attempt_count}/{s.max_attempts}</span>}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-white/50">
@@ -77,7 +84,7 @@ export function WorkflowStepper({
 
 function Output({ output }: { output: Record<string, unknown> | string }) {
   const text = typeof output === "string" ? output : JSON.stringify(output, null, 2);
-  return <pre className="mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 text-[11px] text-white/60">{text}</pre>;
+  return <pre className="glass-inset mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg p-2 text-[11px] text-white/60">{text}</pre>;
 }
 
 const TONE: Record<string, string> = {

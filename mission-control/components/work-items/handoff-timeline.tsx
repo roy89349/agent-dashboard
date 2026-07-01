@@ -9,7 +9,7 @@ import type { AgentMessage, AgentMessageType } from "@/lib/agent-messages";
 
 const TYPE: Record<AgentMessageType, { icon: typeof Eye; verb: string; tone: "indigo" | "amber" | "red" | "emerald" | "teal" | "slate" }> = {
   handoff: { icon: ArrowRightLeft, verb: "handed off to", tone: "indigo" },
-  review_request: { icon: Eye, verb: "requested a review from", tone: "teal" },
+  review_request: { icon: Eye, verb: "requested a review from", tone: "indigo" },
   question: { icon: HelpCircle, verb: "asked", tone: "amber" },
   result: { icon: CheckCircle2, verb: "returned a result to", tone: "emerald" },
   blocker: { icon: Ban, verb: "flagged a blocker for", tone: "red" },
@@ -29,15 +29,18 @@ export function HandoffTimeline({
 
   return (
     <ol className="space-y-3">
-      {messages.map((m) => {
+      {messages.map((m, idx) => {
         const t = TYPE[m.type] ?? TYPE.summary;
         const Icon = t.icon;
         const from = agentName(m.from_agent_id) ?? "An agent";
         const to = agentName(m.to_agent_id) ?? (m.to_role ? m.to_role : "the team");
         const note = typeof m.payload?.note === "string" ? m.payload.note : typeof m.payload?.message === "string" ? (m.payload.message as string) : null;
         return (
-          <li key={m.id} className="flex gap-2.5">
-            <div className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg border ${badgeCls(t.tone)}`}>
+          <li key={m.id} className="relative flex gap-2.5">
+            {idx < messages.length - 1 && (
+              <span aria-hidden className="absolute -bottom-3 left-[13px] top-8 w-px bg-white/10" />
+            )}
+            <div className={`z-10 mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg border ${badgeCls(t.tone)}`}>
               <Icon className="size-3.5" />
             </div>
             <div className="min-w-0 flex-1">

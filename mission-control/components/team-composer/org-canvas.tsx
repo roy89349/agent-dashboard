@@ -92,10 +92,10 @@ export function OrgCanvas(p: Props) {
   function reset() { setT({ x: 24, y: 24, k: 1 }); }
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <div className="glass-inset relative h-full overflow-hidden">
       {/* toolbar */}
       <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5">
-        <button onClick={p.onToggleConnect} className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${p.connectMode ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-300" : "border-white/10 bg-black/30 text-white/60 hover:bg-white/5"}`}>
+        <button onClick={p.onToggleConnect} className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs backdrop-blur-md transition-colors ${p.connectMode ? "glow-ok border-emerald-400/50 bg-emerald-500/15 text-emerald-300" : "border-white/10 bg-black/30 text-white/60 hover:bg-white/10 hover:text-white"}`}>
           <Link2 className="size-3.5" /> {p.connectMode ? (connectFrom ? "pick target…" : "pick source…") : "Connect"}
         </button>
       </div>
@@ -104,7 +104,7 @@ export function OrgCanvas(p: Props) {
         <CanvasBtn onClick={reset} title="Reset zoom"><RotateCcw className="size-3.5" /></CanvasBtn>
         <CanvasBtn onClick={p.onAutoLayout} title="Auto-layout"><LayoutGrid className="size-3.5" /></CanvasBtn>
       </div>
-      <div className="absolute bottom-3 left-3 z-10 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 backdrop-blur">
+      <div className="glass-card absolute bottom-3 left-3 z-10 bg-black/40 px-2.5 py-1.5">
         <EdgeLegend />
       </div>
 
@@ -146,7 +146,7 @@ export function OrgCanvas(p: Props) {
             );
           })}
           {p.team.members.length === 0 && (
-            <div className="absolute left-0 top-0 w-72 rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-4 text-center text-sm text-white/40">
+            <div className="absolute left-0 top-0 w-72 rounded-xl border border-dashed border-white/15 bg-white/[0.03] p-4 text-center text-sm text-white/40 backdrop-blur-sm">
               Empty team — add agents or build a recommended team.
             </div>
           )}
@@ -158,7 +158,7 @@ export function OrgCanvas(p: Props) {
 
 function CanvasBtn({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} title={title} className="grid size-8 place-items-center rounded-lg border border-white/10 bg-black/30 text-white/60 hover:bg-white/5 hover:text-white">
+    <button onClick={onClick} title={title} className="grid size-8 place-items-center rounded-lg border border-white/10 bg-black/30 text-white/60 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white">
       {children}
     </button>
   );

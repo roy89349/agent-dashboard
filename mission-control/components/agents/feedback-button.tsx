@@ -47,13 +47,13 @@ export function FeedbackButton({
 
   return (
     <div className="relative inline-block">
-      <button onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] text-white/55 hover:bg-white/5" title="Give this agent feedback → memory">
+      <button onClick={() => setOpen((o) => !o)} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-white/10 px-2.5 text-[11px] text-white/55 transition-colors hover:bg-white/5 hover:text-white/80" title="Give this agent feedback → memory">
         <MessageSquarePlus className="size-3.5" /> {label}
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-1 w-64 rounded-xl border border-white/10 bg-[#0d1322] p-2 shadow-2xl mc-fade-in">
+          <div className="glass-overlay absolute right-0 z-50 mt-1 w-64 rounded-xl p-2 mc-fade-in">
             <p className="px-1 pb-1 text-[10px] uppercase tracking-wider text-white/35">Train this agent</p>
             <div className="space-y-0.5">
               {FEEDBACK_ACTIONS.map((a) => (

@@ -16,27 +16,56 @@ const PRIMARY = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/approvals", label: "Decisions", icon: Inbox, badge: true },
   { href: "/war-room", label: "War Room", icon: Radio },
-  { href: "/agents", label: "Agents", icon: Users },
+  { href: "/work-items", label: "Work Items", icon: Layers },
 ];
 
-const MORE = [
-  { href: "/work-items", label: "Work Items", icon: Layers, hint: "tasks + handoffs" },
-  { href: "/workflows", label: "Workflows", icon: GitBranch, hint: "multi-role pipelines" },
-  { href: "/manager", label: "Manager", icon: Split, hint: "split big tasks into subtasks" },
-  { href: "/updates", label: "Updates", icon: Megaphone, hint: "team summaries · ask the team" },
-  { href: "/workers", label: "Worker Lanes", icon: Radio, hint: "live build slots" },
-  { href: "/team-composer", label: "Team Composer", icon: Network, hint: "compose your AI team" },
-  { href: "/skills", label: "Skill Library", icon: Boxes, hint: "agent capabilities" },
-  { href: "/", label: "Tasks", icon: ListTodo, hint: "the kanban board" },
-  { href: "/conversations", label: "Conversations", icon: MessagesSquare, hint: "team · tasks · decisions · logs" },
-  { href: "/kennis", label: "Knowledge", icon: BookOpen, hint: "project brain" },
-  { href: "/build-team", label: "Build Team", icon: Wand2, hint: "team-from-project wizard" },
-  { href: "/kpis", label: "KPIs", icon: BarChart3, hint: "productivity · quality · speed" },
-  { href: "/costs", label: "Costs", icon: Gauge, hint: "usage estimates · budgets" },
-  { href: "/agent-performance", label: "Performance", icon: Trophy, hint: "agent leaderboard" },
-  { href: "/audit", label: "Audit Log", icon: ScrollText, hint: "traceable action trail" },
-  { href: "/config", label: "Config", icon: Settings, hint: "limits & integrations" },
-  { href: "/config#phone", label: "Phone Command setup", icon: Smartphone, hint: "Telegram / WhatsApp" },
+// Grouped like the desktop sidebar (Command / Team / Intelligence / Communication / System).
+const MORE_GROUPS: {
+  section: string;
+  items: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; hint?: string }[];
+}[] = [
+  {
+    section: "Command",
+    items: [
+      { href: "/", label: "Tasks", icon: ListTodo, hint: "the kanban board" },
+      { href: "/workflows", label: "Workflows", icon: GitBranch, hint: "multi-role pipelines" },
+      { href: "/workers", label: "Worker Lanes", icon: Radio, hint: "live build slots" },
+    ],
+  },
+  {
+    section: "Team",
+    items: [
+      { href: "/manager", label: "Manager", icon: Split, hint: "split big tasks into subtasks" },
+      { href: "/agents", label: "Agents", icon: Users, hint: "roster · memory · performance" },
+      { href: "/build-team", label: "Build Team", icon: Wand2, hint: "team-from-project wizard" },
+      { href: "/team-composer", label: "Team Composer", icon: Network, hint: "compose your AI team" },
+      { href: "/skills", label: "Skill Library", icon: Boxes, hint: "agent capabilities" },
+    ],
+  },
+  {
+    section: "Intelligence",
+    items: [
+      { href: "/kennis", label: "Knowledge", icon: BookOpen, hint: "project brain" },
+      { href: "/kpis", label: "KPIs", icon: BarChart3, hint: "productivity · quality · speed" },
+      { href: "/costs", label: "Costs", icon: Gauge, hint: "usage estimates · budgets" },
+      { href: "/agent-performance", label: "Performance", icon: Trophy, hint: "agent leaderboard" },
+    ],
+  },
+  {
+    section: "Communication",
+    items: [
+      { href: "/updates", label: "Updates", icon: Megaphone, hint: "team summaries · ask the team" },
+      { href: "/conversations", label: "Conversations", icon: MessagesSquare, hint: "team · tasks · decisions · logs" },
+      { href: "/config#phone", label: "Phone Command setup", icon: Smartphone, hint: "Telegram / WhatsApp" },
+    ],
+  },
+  {
+    section: "System",
+    items: [
+      { href: "/audit", label: "Audit Log", icon: ScrollText, hint: "traceable action trail" },
+      { href: "/config", label: "Config", icon: Settings, hint: "limits & integrations" },
+    ],
+  },
 ];
 
 export function MobileNav({
@@ -94,7 +123,7 @@ export function MobileNav({
       <Dialog.Root open={moreOpen} onOpenChange={setMoreOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm md:hidden" />
-          <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-white/10 bg-[#0d1322] pb-[env(safe-area-inset-bottom)] text-white [animation:mc-drawer-up_0.22s_ease-out] md:hidden">
+          <Dialog.Content className="glass-overlay fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl pb-[env(safe-area-inset-bottom)] text-white [animation:mc-drawer-up_0.22s_ease-out] md:hidden">
             <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-white/15" />
             <div className="flex items-center justify-between px-5 py-3">
               <Dialog.Title className="text-sm font-semibold">Mission Control</Dialog.Title>
@@ -120,25 +149,32 @@ export function MobileNav({
             </div>
 
             <div className="overflow-y-auto px-3 pb-4">
-              {MORE.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    onClick={() => setMoreOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/5"
-                  >
-                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-white/60">
-                      <Icon className="size-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block font-medium">{item.label}</span>
-                      {item.hint && <span className="block truncate text-xs text-white/35">{item.hint}</span>}
-                    </span>
-                  </Link>
-                );
-              })}
+              {MORE_GROUPS.map((g) => (
+                <div key={g.section} className="mb-2">
+                  <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">
+                    {g.section}
+                  </p>
+                  {g.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        onClick={() => setMoreOpen(false)}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/5"
+                      >
+                        <span className="glass-card grid size-9 shrink-0 place-items-center text-white/60">
+                          <Icon className="size-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block font-medium">{item.label}</span>
+                          {item.hint && <span className="block truncate text-xs text-white/35">{item.hint}</span>}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </Dialog.Content>
         </Dialog.Portal>

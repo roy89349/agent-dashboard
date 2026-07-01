@@ -33,7 +33,7 @@ export function SkillsLibrary() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-5 pb-24 sm:px-6 md:pb-5">
       <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300">
+        <div className="glass-card grid size-9 place-items-center text-emerald-300">
           <Boxes className="size-[18px]" />
         </div>
         <div>
@@ -41,24 +41,24 @@ export function SkillsLibrary() {
           <p className="text-xs text-white/40">{S.loaded ? `${activeCount} active · ${S.skills.length} total — capabilities, not permissions` : "Loading…"}</p>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={() => { S.loadSkills(); S.loadAgents(); }} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5">
+          <button onClick={() => { S.loadSkills(); S.loadAgents(); }} className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 text-xs text-white/50 transition-colors hover:bg-white/5 hover:text-white/80 md:h-8">
             <RefreshCw className="size-3.5" /> <span className="hidden sm:inline">Refresh</span>
           </button>
-          <button onClick={newSkill} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-black hover:bg-emerald-400">
+          <button onClick={newSkill} className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-emerald-500 px-3.5 text-sm font-semibold text-black shadow-[0_0_18px_rgba(16,185,129,0.2)] transition-colors hover:bg-emerald-400 md:h-9">
             <Plus className="size-4" /> New skill
           </button>
         </div>
       </div>
 
-      <div className="mb-4"><SkillsFilter facets={facets} filter={filter} onFilter={setFilter} /></div>
+      <div className="glass-card mb-4 px-3 py-2.5"><SkillsFilter facets={facets} filter={filter} onFilter={setFilter} /></div>
 
       {!S.loaded ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-36 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />)}
+          {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="glass-card h-36 animate-pulse" />)}
         </div>
       ) : shown.length === 0 ? (
         <EmptyState icon={Boxes} title={S.skills.length === 0 ? "No skills yet" : "No skills match this filter"} hint={S.skills.length === 0 ? "Add capability blocks for your agents." : "Adjust the filters above."} action={
-          S.skills.length === 0 ? <button onClick={newSkill} className="inline-flex h-10 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-black hover:bg-emerald-400"><Plus className="size-4" /> New skill</button> : undefined
+          S.skills.length === 0 ? <button onClick={newSkill} className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-black shadow-[0_0_18px_rgba(16,185,129,0.2)] transition-colors hover:bg-emerald-400"><Plus className="size-4" /> New skill</button> : undefined
         } />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">

@@ -12,7 +12,7 @@ import { evaluateSkillForAgent, type SkillWarning } from "@/lib/skills-view";
 import { SKILL_RISKS, type Skill, type SkillInput, type Agent, type AgentInput } from "@/lib/types";
 import type { SaveResult } from "./use-skills";
 
-const inputCls = "h-9 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-emerald-500/40";
+const inputCls = "h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none transition-colors focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/20 md:h-9";
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -143,10 +143,10 @@ export function SkillDetail({
               <p className="flex items-start gap-1.5 text-[11px] text-amber-300"><AlertTriangle className="mt-0.5 size-3 shrink-0" /> A {s.risk_level}-risk skill without approval is dangerous on autonomous agents.</p>
             )}
             <Toggle on={s.enabled} onChange={(v) => set("enabled", v)} label="Enabled" />
-            <button onClick={save} disabled={busy} className="h-10 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">{busy ? "Saving…" : "Save skill"}</button>
+            <button onClick={save} disabled={busy} className="h-11 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black shadow-[0_0_18px_rgba(16,185,129,0.2)] transition-colors hover:bg-emerald-400 disabled:opacity-50">{busy ? "Saving…" : "Save skill"}</button>
             <div className="flex gap-2">
-              <button onClick={toggleArchive} className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/10 text-sm text-white/70 hover:bg-white/5">{s.archived ? <><ArchiveRestore className="size-4" /> Restore</> : <><Archive className="size-4" /> Archive</>}</button>
-              <button onClick={del} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 text-sm text-red-300 hover:bg-red-500/10"><Trash2 className="size-4" /></button>
+              <button onClick={toggleArchive} className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-sm text-white/70 transition-colors hover:bg-white/5 hover:text-white md:h-9">{s.archived ? <><ArchiveRestore className="size-4" /> Restore</> : <><Archive className="size-4" /> Archive</>}</button>
+              <button onClick={del} className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-sm text-red-300 transition-colors hover:bg-red-500/10 md:h-9"><Trash2 className="size-4" /></button>
             </div>
 
             {/* linked agents + warnings */}
@@ -158,7 +158,7 @@ export function SkillDetail({
                   const linked = a.skill_ids.includes(s.id);
                   const warns = evaluateSkillForAgent(s, a).filter((w) => w.kind !== "approval_required" && w.kind !== "disabled");
                   return (
-                    <div key={a.id} className={`rounded-xl border p-2 ${linked ? "border-emerald-400/40 bg-emerald-500/[0.05]" : "border-white/10 bg-white/[0.02]"}`}>
+                    <div key={a.id} className={`glass-card p-2 ${linked ? "border-emerald-400/40 bg-emerald-500/[0.05]" : ""}`}>
                       <div className="flex items-center gap-2">
                         <AgentAvatar name={a.name} role={a.role} />
                         <span className="min-w-0 flex-1 truncate text-sm text-white/85">{a.name}</span>

@@ -2,18 +2,25 @@
 
 :root {
   color-scheme: dark;
-  --bg: #080b14;          /* app-achtergrond (diep) */
-  --bg-elev: #0d1322;     /* verhoogd paneel */
+  --bg: #070a13;          /* app background (deep) */
+  --bg-elev: #0d1322;     /* elevated panel */
   --panel: rgba(255, 255, 255, 0.03);
   --panel-hover: rgba(255, 255, 255, 0.06);
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);
   --text: #e6eaf2;
   --muted: #8b97b0;
-  --accent: #10b981;      /* emerald — fleet/acties */
-  --accent-2: #6366f1;    /* indigo — AI/chat */
-  --danger: #ef4444;
-  --warn: #f59e0b;
+  --accent: #10b981;      /* emerald — fleet/actions/success */
+  --accent-2: #6366f1;    /* indigo — AI/info/review */
+  --danger: #ef4444;      /* red — failed/offline */
+  --warn: #f59e0b;        /* amber — waiting/warning */
+
+  /* liquid glass */
+  --glass: rgba(255, 255, 255, 0.035);
+  --glass-strong: rgba(16, 22, 38, 0.66);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-highlight: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
 html,
@@ -26,15 +33,82 @@ body {
   border-color: var(--border);
 }
 
-/* subtiele premium achtergrond-glow */
+/* dark luxe background: subtle mesh orbs, fixed */
 body {
   background-image:
-    radial-gradient(60rem 60rem at 85% -10%, rgba(99, 102, 241, 0.08), transparent 60%),
-    radial-gradient(50rem 50rem at -10% 10%, rgba(16, 185, 129, 0.06), transparent 55%);
+    radial-gradient(55rem 55rem at 85% -12%, rgba(99, 102, 241, 0.09), transparent 60%),
+    radial-gradient(45rem 45rem at -12% 8%, rgba(16, 185, 129, 0.06), transparent 55%),
+    radial-gradient(40rem 40rem at 55% 115%, rgba(139, 92, 246, 0.05), transparent 60%);
   background-attachment: fixed;
 }
 
-/* strakke, dunne scrollbars */
+/* ── liquid glass surfaces (single source of truth) ─────────────────────── */
+
+/* panel: page-level glass surface */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 1rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    var(--glass-shadow);
+}
+
+/* card: smaller unit inside a panel or grid */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 4px 18px rgba(0, 0, 0, 0.25);
+}
+
+/* recessed well: kanban columns, timelines, log areas */
+.glass-inset {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1rem;
+  box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.28);
+}
+
+/* premium hover lift for interactive glass */
+.glass-hover {
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+.glass-hover:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-strong);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* strong glass: overlays, drawers, dialogs, sticky bars */
+.glass-overlay {
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* quiet functional glows for active states (never neon) */
+.glow-ok { box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35), 0 0 18px rgba(16, 185, 129, 0.12); }
+.glow-warn { box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35), 0 0 18px rgba(245, 158, 11, 0.12); }
+.glow-danger { box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35), 0 0 18px rgba(239, 68, 68, 0.12); }
+.glow-info { box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35), 0 0 18px rgba(99, 102, 241, 0.12); }
+
+/* ── chrome ─────────────────────────────────────────────────────────────── */
+
+/* thin scrollbars */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
@@ -54,6 +128,23 @@ body {
 ::selection {
   background: rgba(16, 185, 129, 0.3);
 }
+
+/* visible focus everywhere (keyboard users) */
+:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.55);
+  outline-offset: 2px;
+}
+
+kbd {
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  padding: 0 0.3rem;
+  font-size: 10px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── motion ─────────────────────────────────────────────────────────────── */
 
 @keyframes mc-fade-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -75,4 +166,14 @@ body {
 @keyframes mc-overlay-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

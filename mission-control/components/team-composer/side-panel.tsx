@@ -45,7 +45,7 @@ export function SidePanel(props: {
               <button
                 key={t.key}
                 onClick={() => props.setTab(t.key)}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-sm transition-colors ${props.tab === t.key ? "bg-white/10 text-white" : "text-white/50 hover:text-white/80"}`}
+                className={`min-h-[44px] shrink-0 rounded-lg px-3 py-1.5 text-sm transition-colors md:min-h-0 ${props.tab === t.key ? "bg-white/10 text-white ring-1 ring-white/15" : "text-white/50 hover:bg-white/5 hover:text-white/80"}`}
               >
                 {t.label}
               </button>
@@ -73,7 +73,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     </label>
   );
 }
-const inputCls = "h-9 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-emerald-500/40";
+const inputCls = "h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none transition-colors focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/20 md:h-9";
 function Select({ value, onChange, options, disabledValues = [] }: { value: string; onChange: (v: string) => void; options: { v: string; l?: string }[]; disabledValues?: string[] }) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
@@ -150,7 +150,7 @@ function AgentTab({ agent, saveAgent, allowAutoMerge, allowGlobalOpus, draft, on
       <Field label="Skills"><Chips values={a.skills} onChange={(v) => set("skills", v)} placeholder="add a skill + Enter" /></Field>
       <Toggle on={a.blocking} onChange={(v) => set("blocking", v)} label="Blocking reviewer (reject blocks the PR)" />
       <Toggle on={a.enabled} onChange={(v) => set("enabled", v)} label="Enabled (live in the fleet)" />
-      <button onClick={() => save()} disabled={busy} className="h-10 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">{busy ? "Saving…" : "Save agent"}</button>
+      <button onClick={() => save()} disabled={busy} className="h-11 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black shadow-[0_0_18px_rgba(16,185,129,0.2)] transition-colors hover:bg-emerald-400 disabled:opacity-50">{busy ? "Saving…" : "Save agent"}</button>
     </div>
   );
 }
@@ -179,7 +179,7 @@ function RoutingTab({ draft, setDraft, agents }: { draft: Team; setDraft: (fn: (
     <div className="space-y-3">
       {draft.routing_rules.length === 0 && <p className="text-xs text-white/40">No routing rules — issues use the global fleet routing. Add a rule to assign matching work to a member/role.</p>}
       {draft.routing_rules.map((r, i) => (
-        <div key={i} className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+        <div key={i} className="glass-card space-y-2 p-3">
           <div className="flex items-center justify-between">
             <Toggle on={r.enabled} onChange={(v) => setRules(draft.routing_rules.map((x, j) => (j === i ? { ...x, enabled: v } : x)))} label={r.id} />
             <button onClick={() => setRules(draft.routing_rules.filter((_, j) => j !== i))} className="text-white/40 hover:text-red-300"><Trash2 className="size-4" /></button>
@@ -191,7 +191,7 @@ function RoutingTab({ draft, setDraft, agents }: { draft: Team; setDraft: (fn: (
           </div>
         </div>
       ))}
-      <button onClick={add} className="h-9 w-full rounded-lg border border-white/10 text-sm text-white/70 hover:bg-white/5">+ Add routing rule</button>
+      <button onClick={add} className="h-11 w-full rounded-lg border border-dashed border-white/15 bg-white/[0.02] text-sm text-white/70 transition-colors hover:bg-white/5 hover:text-white md:h-9">+ Add routing rule</button>
     </div>
   );
 }

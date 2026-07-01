@@ -44,8 +44,18 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
         <FeedbackButton agentId={agentId} onDone={load} label="Give feedback" />
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-1">
-        {TABS.map((t) => <button key={t} onClick={() => setTab(t)} className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize ${tab === t ? "bg-white/10 text-white" : "text-white/50 hover:bg-white/5"}`}>{t}</button>)}
+      <div className="glass-inset mb-4 inline-flex max-w-full flex-wrap gap-1 rounded-xl p-1">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`min-h-9 rounded-lg px-3.5 text-xs font-medium capitalize transition-colors ${
+              tab === t ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" : "text-white/50 hover:bg-white/5 hover:text-white/80"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
       </div>
 
       {tab === "overview" && <Overview d={d} />}
@@ -60,8 +70,8 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
 function Overview({ d }: { d: Detail }) {
   const all = MEMORY_TYPES.flatMap((t) => d.memory[t]).filter((m) => m.enabled);
   const group = (t: MemoryType, icon: React.ReactNode) => d.memory[t].length > 0 && (
-    <div key={t}><p className={`flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider ${TYPE_TONE[t]}`}>{icon} {t}</p>
-      <ul className="mt-0.5 space-y-0.5">{d.memory[t].slice(0, 5).map((m) => <li key={m.id} className={`text-xs ${m.enabled ? "text-white/70" : "text-white/30 line-through"}`}>• {m.title}</li>)}</ul></div>
+    <div key={t} className="glass-card p-3"><p className={`flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider ${TYPE_TONE[t]}`}>{icon} {t}</p>
+      <ul className="mt-1 space-y-0.5">{d.memory[t].slice(0, 5).map((m) => <li key={m.id} className={`text-xs ${m.enabled ? "text-white/70" : "text-white/30 line-through"}`}>• {m.title}</li>)}</ul></div>
   );
   return (
     <div className="space-y-4">
@@ -123,16 +133,16 @@ function MemoryTab({ agentId, onChanged }: { agentId: string; onChanged: () => v
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-end gap-2 rounded-xl border border-white/10 bg-black/20 p-3">
+      <div className="glass-inset flex flex-wrap items-end gap-2 p-3">
         <select value={nt.type} onChange={(e) => setNt({ ...nt, type: e.target.value as MemoryType })} className="h-9 rounded-lg border border-white/10 bg-white/5 px-2 text-sm text-white outline-none capitalize">{MEMORY_TYPES.map((t) => <option key={t} value={t} className="bg-[#0d1322] capitalize">{t}</option>)}</select>
         <input value={nt.title} onChange={(e) => setNt({ ...nt, title: e.target.value })} placeholder="Memory (e.g. Never use library X)" className="h-9 min-w-40 flex-1 rounded-lg border border-white/10 bg-white/5 px-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40" />
-        <button onClick={add} className="h-9 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-black hover:bg-emerald-400">Add</button>
+        <button onClick={add} className="h-11 rounded-lg bg-emerald-500 px-3.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400">Add</button>
       </div>
       <label className="flex items-center gap-1.5 text-xs text-white/50"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> show archived</label>
       {items.length === 0 ? <p className="text-sm text-white/35">No memory yet.</p> : (
         <ul className="space-y-1.5">
           {items.map((m) => (
-            <li key={m.id} className={`flex items-start gap-2 rounded-xl border border-white/10 p-2.5 ${m.archived ? "bg-white/[0.01] opacity-50" : m.enabled ? "bg-white/[0.03]" : "bg-white/[0.01] opacity-70"}`}>
+            <li key={m.id} className={`glass-card flex items-start gap-2 p-2.5 ${m.archived ? "opacity-50" : m.enabled ? "" : "opacity-70"}`}>
               <span className={`mt-0.5 rounded px-1 text-[9px] uppercase ${TYPE_TONE[m.type]} border border-current/30`}>{m.type}</span>
               <div className="min-w-0 flex-1">
                 <p className={`text-sm ${m.enabled && !m.archived ? "text-white/85" : "text-white/40 line-through"}`}>{m.title}{m.archived && <span className="ml-1 text-[10px] text-white/30">archived</span>}</p>
@@ -160,7 +170,7 @@ function FeedbackTab({ feedback }: { feedback: FeedbackItem[] }) {
   return feedback.length === 0 ? <p className="text-sm text-white/35">No feedback yet — use the Give feedback button (it becomes memory).</p> : (
     <ul className="space-y-1.5">
       {feedback.map((f) => (
-        <li key={f.id} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-2.5 text-xs">
+        <li key={f.id} className="glass-card flex items-center gap-2 p-2.5 text-xs">
           <span className={`inline-flex size-5 shrink-0 items-center justify-center rounded-full ${(f.rating ?? 0) > 0 ? "bg-emerald-500/20 text-emerald-300" : (f.rating ?? 0) < 0 ? "bg-red-500/20 text-red-300" : "bg-white/10 text-white/50"}`}>{(f.rating ?? 0) > 0 ? "+" : (f.rating ?? 0) < 0 ? "−" : "•"}</span>
           <span className="min-w-0 flex-1 truncate text-white/75">{labelOf(f.feedback_type)}{f.comment ? ` — ${f.comment}` : ""}</span>
           <span className="shrink-0 text-[10px] text-white/30">{new Date(f.created_at).toLocaleDateString()}</span>
@@ -174,7 +184,7 @@ function Recent({ recent }: { recent: AgentPerf["last_10"] }) {
   return recent.length === 0 ? <p className="text-sm text-white/35">No recent tasks.</p> : (
     <ul className="space-y-1">
       {recent.map((t) => (
-        <li key={t.work_item_id} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs">
+        <li key={t.work_item_id} className="glass-card flex items-center gap-2 px-3 py-2 text-xs">
           <span className={`size-2 rounded-full ${t.state === "done" ? "bg-emerald-400" : t.state === "failed" ? "bg-red-500" : t.state === "blocked" ? "bg-amber-400" : "bg-white/30"}`} />
           <span className="min-w-0 flex-1 truncate text-white/75">{t.title}</span>
           <span className="shrink-0 capitalize text-white/35">{t.state}</span>
@@ -185,5 +195,5 @@ function Recent({ recent }: { recent: AgentPerf["last_10"] }) {
 }
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
-  return <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5"><p className="text-[10px] uppercase tracking-wider text-white/40">{label}</p><p className="mt-0.5 text-lg font-semibold tabular-nums text-white">{value}</p></div>;
+  return <div className="glass-card p-2.5"><p className="text-[10px] uppercase tracking-wider text-white/40">{label}</p><p className="mt-0.5 text-lg font-semibold tabular-nums text-white">{value}</p></div>;
 }

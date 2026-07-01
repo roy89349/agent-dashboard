@@ -28,7 +28,7 @@ export function AgentCard({
     return (
       <div
         onClick={onClick}
-        className={`rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-3 ${onClick ? "cursor-pointer" : ""}`}
+        className={`rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-3 backdrop-blur-sm ${onClick ? "cursor-pointer" : ""}`}
       >
         <div className="flex items-center gap-2 text-white/40">
           <AlertTriangle className="size-4" />
@@ -40,8 +40,8 @@ export function AgentCard({
   return (
     <div
       onClick={onClick}
-      className={`rounded-xl border p-3 transition-colors ${
-        selected ? "border-emerald-400/60 bg-emerald-500/[0.06]" : "border-white/10 bg-white/[0.04] hover:border-white/25"
+      className={`glass-card p-3 ${
+        selected ? "glow-ok border-emerald-400/60 bg-emerald-500/[0.07]" : "glass-hover"
       } ${!agent.enabled ? "opacity-55" : ""} ${onClick ? "cursor-pointer" : ""}`}
     >
       <div className="flex items-center gap-2">

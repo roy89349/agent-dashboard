@@ -54,7 +54,7 @@ export function BuildTeamWizard() {
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-5 pb-24 sm:px-6 md:pb-5">
       <div className="mb-5 flex items-center gap-3">
-        <div className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300"><Wand2 className="size-[18px]" /></div>
+        <div className="glass-card grid size-9 place-items-center text-emerald-300"><Wand2 className="size-[18px]" /></div>
         <div><h2 className="text-base font-semibold text-white">Build my team</h2><p className="text-xs text-white/40">Pick a project type → get a full team proposal → tweak → create</p></div>
       </div>
 
@@ -76,9 +76,9 @@ function Steps({ step }: { step: number }) {
     <div className="mb-5 flex items-center gap-2">
       {labels.map((l, i) => (
         <div key={l} className="flex flex-1 items-center gap-2">
-          <span className={`grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${step > i + 1 ? "bg-emerald-500 text-black" : step === i + 1 ? "bg-white/15 text-white" : "bg-white/5 text-white/40"}`}>{step > i + 1 ? <Check className="size-3.5" /> : i + 1}</span>
-          <span className={`text-xs ${step === i + 1 ? "text-white" : "text-white/40"}`}>{l}</span>
-          {i < labels.length - 1 && <span className="h-px flex-1 bg-white/10" />}
+          <span className={`grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold transition-colors ${step > i + 1 ? "bg-emerald-500 text-black" : step === i + 1 ? "glow-ok bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/40" : "border border-white/10 bg-white/5 text-white/40"}`}>{step > i + 1 ? <Check className="size-3.5" /> : i + 1}</span>
+          <span className={`text-xs ${step === i + 1 ? "font-medium text-white" : "text-white/40"}`}>{l}</span>
+          {i < labels.length - 1 && <span className={`h-px flex-1 ${step > i + 1 ? "bg-emerald-500/30" : "bg-white/10"}`} />}
         </div>
       ))}
     </div>
@@ -90,11 +90,11 @@ function TemplateStep({ templates, input, patch, onNext }: { templates: Template
     <div className="space-y-4">
       <div>
         <label className="text-xs text-white/50">Project name</label>
-        <input value={input.project_name} onChange={(e) => patch({ project_name: e.target.value })} placeholder="e.g. Acme billing revamp" className="mt-1 h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40" />
+        <input value={input.project_name} onChange={(e) => patch({ project_name: e.target.value })} placeholder="e.g. Acme billing revamp" className={inp} />
       </div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {templates.map((t) => (
-          <button key={t.id} onClick={() => patch({ template_id: t.id })} className={`rounded-xl border p-3 text-left transition-colors ${input.template_id === t.id ? "border-emerald-500/50 bg-emerald-500/[0.06]" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}>
+          <button key={t.id} onClick={() => patch({ template_id: t.id })} className={`glass-card min-h-[44px] p-3.5 text-left ${input.template_id === t.id ? "glow-ok border-emerald-400/50 bg-emerald-500/[0.07]" : "glass-hover"}`}>
             <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium text-white">{t.label}</span><span className={`text-[10px] uppercase ${RISK_TONE[t.default_risk]}`}>{t.default_risk} risk</span></div>
             <p className="mt-0.5 text-[11px] text-white/45">{t.description}</p>
             <p className="mt-1 text-[10px] text-white/30">{t.roles.length} roles · {t.roles.slice(0, 5).join(", ")}{t.roles.length > 5 ? "…" : ""}</p>
@@ -102,7 +102,7 @@ function TemplateStep({ templates, input, patch, onNext }: { templates: Template
         ))}
       </div>
       <div className="flex justify-end">
-        <button disabled={!input.template_id || !input.project_name.trim()} onClick={onNext} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-40">Next <ArrowRight className="size-4" /></button>
+        <button disabled={!input.template_id || !input.project_name.trim()} onClick={onNext} className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-40">Next <ArrowRight className="size-4" /></button>
       </div>
     </div>
   );
@@ -133,8 +133,8 @@ function ConfigStep({ templates, input, patch, busy, onBack, onRecommend }: { te
         <Toggle label="Phone updates" checked={input.phone_updates !== false} onChange={(v) => patch({ phone_updates: v })} />
       </div>
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm text-white/60 hover:bg-white/5"><ArrowLeft className="size-4" /> Back</button>
-        <button disabled={busy} onClick={onRecommend} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">{busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Build recommendation</button>
+        <button onClick={onBack} className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-sm text-white/60 transition-colors hover:bg-white/5 hover:text-white/80"><ArrowLeft className="size-4" /> Back</button>
+        <button disabled={busy} onClick={onRecommend} className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-black shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-colors hover:bg-emerald-400 disabled:opacity-50">{busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Build recommendation</button>
       </div>
     </div>
   );
@@ -149,7 +149,7 @@ function ReviewStep({ rec, validation, busy, dropped, setDropped, onAdjust, onBa
   return (
     <div className="space-y-4">
       {/* adjust bar */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-2.5 text-xs">
+      <div className="glass-card flex flex-wrap items-center gap-2 p-2.5 text-xs">
         <span className="text-white/40">Adjust:</span>
         <select value={rec.risk_level} onChange={(e) => onAdjust({ risk_level: e.target.value as RiskLevel })} className={inpSm}>{RISKS.map((r) => <option key={r} value={r} className="bg-[#0d1322] capitalize">{r} risk</option>)}</select>
         <select value={rec.speed_vs_quality} onChange={(e) => onAdjust({ speed_vs_quality: e.target.value as SpeedQuality })} className={inpSm}><option value="speed" className="bg-[#0d1322]">Speed</option><option value="balanced" className="bg-[#0d1322]">Balanced</option><option value="quality" className="bg-[#0d1322]">Quality</option></select>
@@ -160,7 +160,7 @@ function ReviewStep({ rec, validation, busy, dropped, setDropped, onAdjust, onBa
 
       {/* warnings */}
       {(validation?.errors?.length || rec.warnings.length) ? (
-        <div className="space-y-1 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-xs">
+        <div className="glass-card glow-warn space-y-1 border-amber-500/25 bg-amber-500/[0.06] p-3 text-xs">
           {validation?.errors?.map((e, i) => <p key={`e${i}`} className="flex items-center gap-1.5 text-red-300"><AlertTriangle className="size-3.5" /> {e}</p>)}
           {rec.warnings.map((w, i) => <p key={`w${i}`} className="flex items-center gap-1.5 text-amber-200/90"><AlertTriangle className="size-3.5" /> {w}</p>)}
         </div>
@@ -172,7 +172,7 @@ function ReviewStep({ rec, validation, busy, dropped, setDropped, onAdjust, onBa
           {rec.roles.map((r) => {
             const off = !r.agent_id || (r.agent_id && dropped.has(r.agent_id));
             return (
-              <div key={r.role} className={`rounded-xl border p-2.5 ${off ? "border-white/5 bg-white/[0.01] opacity-50" : "border-white/10 bg-white/[0.03]"}`}>
+              <div key={r.role} className={`glass-card p-2.5 ${off ? "border-white/5 bg-white/[0.01] opacity-50" : ""}`}>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium capitalize text-white">{r.role}</span>
                   {r.role === rec.lead_role && <span className="rounded bg-indigo-500/20 px-1 text-[9px] uppercase text-indigo-300">lead</span>}
@@ -223,22 +223,22 @@ function ReviewStep({ rec, validation, busy, dropped, setDropped, onAdjust, onBa
       </Panel>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <button onClick={onBack} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm text-white/60 hover:bg-white/5"><ArrowLeft className="size-4" /> Back</button>
+        <button onClick={onBack} className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-sm text-white/60 transition-colors hover:bg-white/5 hover:text-white/80"><ArrowLeft className="size-4" /> Back</button>
         <div className="flex gap-2">
-          <button disabled={busy || !!validation?.errors?.length} onClick={() => onCreate(true)} className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white/75 hover:bg-white/5 disabled:opacity-40">Save as template</button>
-          <button disabled={busy || !!validation?.errors?.length || activeMembers === 0} onClick={() => onCreate(false)} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-40">{busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Create team</button>
+          <button disabled={busy || !!validation?.errors?.length} onClick={() => onCreate(true)} className="inline-flex h-11 items-center rounded-lg border border-white/15 bg-white/[0.03] px-3 text-sm text-white/75 transition-colors hover:bg-white/5 disabled:opacity-40">Save as template</button>
+          <button disabled={busy || !!validation?.errors?.length || activeMembers === 0} onClick={() => onCreate(false)} className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-emerald-500 px-5 text-sm font-semibold text-black shadow-[0_0_24px_rgba(16,185,129,0.25)] transition-colors hover:bg-emerald-400 disabled:opacity-40">{busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Create team</button>
         </div>
       </div>
     </div>
   );
 }
 
-const inp = "mt-1 h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40";
+const inp = "mt-1 h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/20";
 const inpSm = "h-7 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white outline-none";
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="text-xs text-white/50">{label}</span>{children}</label>; }
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return <label className="flex items-center gap-2 text-sm text-white/70"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> {label}{hint && <span className="text-[10px] text-white/30">({hint})</span>}</label>;
 }
 function Panel({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
-  return <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4"><p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/45">{icon} {title}</p>{children}</section>;
+  return <section className="glass p-4"><p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">{icon} {title}</p>{children}</section>;
 }

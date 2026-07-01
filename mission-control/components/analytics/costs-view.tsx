@@ -27,14 +27,14 @@ export function CostsView() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-5 pb-24 sm:px-6 md:pb-5">
       <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300"><Gauge className="size-[18px]" /></div>
-        <div><h2 className="text-base font-semibold text-white">Costs &amp; usage</h2><p className="text-xs text-white/40">Activity-based estimates — real usage plugs in later</p></div>
-        <button onClick={() => setCfgOpen(!cfgOpen)} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5"><Settings2 className="size-3.5" /> Budgets</button>
-        <button onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5"><RefreshCw className="size-3.5" /></button>
+        <div className="glass-card grid size-10 place-items-center text-emerald-300"><Gauge className="size-[18px]" /></div>
+        <div><h2 className="text-base font-semibold tracking-tight text-white">Costs &amp; usage</h2><p className="text-xs text-white/40">Activity-based estimates — real usage plugs in later</p></div>
+        <button onClick={() => setCfgOpen(!cfgOpen)} className="glass-card glass-hover ml-auto inline-flex h-10 items-center gap-1.5 px-3 text-xs text-white/60 hover:text-white/90"><Settings2 className="size-3.5" /> Budgets</button>
+        <button onClick={load} aria-label="Refresh" className="glass-card glass-hover grid size-10 place-items-center text-white/50 hover:text-white/80"><RefreshCw className="size-4" /></button>
       </div>
 
       {/* honesty banner */}
-      <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-xs text-amber-200/90">
+      <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-xs text-amber-200/90 backdrop-blur-md glow-warn">
         <Info className="mt-0.5 size-4 shrink-0" />
         <span><b>These are estimates.</b> No real Claude/API token usage is connected yet — usage is modelled from activity (tasks · workflow steps · messages).
           {rateSet ? " A cost rate is configured, so ~$ figures are estimates too." : " No euro/$ figures are shown until you set a real rate in Budgets (no invented costs)."}</span>
@@ -48,13 +48,13 @@ export function CostsView() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <section className="glass p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">Estimated usage ({GROUPS.find((g) => g.v === groupBy)?.l})</p>
           <Bars rows={(usage?.rows ?? []).slice(0, 12).map((r) => ({ label: r.label, value: r.est_tokens }))} unit=" tok" />
           {rateSet && usage && <p className="mt-2 text-[11px] text-white/40">≈ ${usage.rows.reduce((s, r) => s + (r.est_cost_usd ?? 0), 0).toFixed(2)} total (estimate)</p>}
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <section className="glass p-4">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/45"><Gauge className="size-3.5" /> Budget today (estimate)</p>
           {!budget || (budget.agents.length === 0 && budget.teams.length === 0) ? <p className="text-xs text-white/30">No activity today.</p> : (
             <div className="space-y-1.5">
@@ -63,7 +63,7 @@ export function CostsView() {
                   <span className="w-28 shrink-0 truncate text-white/60">{r.label}</span>
                   {r.state === "no_budget" ? <span className="text-[10px] text-white/25">no budget set</span> : (
                     <>
-                      <span className="h-2.5 flex-1 overflow-hidden rounded bg-white/5"><span className={`block h-full ${r.state === "exceeded" ? "bg-red-500/70" : r.state === "warning" ? "bg-amber-500/70" : "bg-emerald-500/60"}`} style={{ width: `${Math.min(100, r.pct)}%` }} /></span>
+                      <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-black/25 shadow-[inset_0_1px_3px_rgba(0,0,0,0.3)]"><span className={`block h-full rounded-full ${r.state === "exceeded" ? "bg-red-500/70" : r.state === "warning" ? "bg-amber-500/70" : "bg-emerald-500/60"}`} style={{ width: `${Math.min(100, r.pct)}%` }} /></span>
                       <span className={`shrink-0 tabular-nums ${STATE_TONE[r.state]}`}>{r.pct}%{r.state === "exceeded" && <AlertTriangle className="ml-0.5 inline size-3" />}</span>
                     </>
                   )}
@@ -88,11 +88,11 @@ function BudgetForm({ config, model, onSaved, onClose }: { config: BudgetConfig;
   }
   const N = (k: keyof typeof f, label: string, hint?: string) => (
     <label className="block text-xs text-white/50">{label}{hint && <span className="text-white/25"> · {hint}</span>}
-      <input type="number" min={0} value={f[k] as number} onChange={(e) => setF({ ...f, [k]: Number(e.target.value) })} className="mt-1 h-9 w-full rounded-lg border border-white/10 bg-white/5 px-2.5 text-sm text-white outline-none focus:border-emerald-500/40" />
+      <input type="number" min={0} value={f[k] as number} onChange={(e) => setF({ ...f, [k]: Number(e.target.value) })} className="mt-1 h-10 w-full rounded-lg border border-white/10 bg-white/[0.05] px-2.5 text-sm text-white outline-none backdrop-blur-md focus:border-emerald-500/40" />
     </label>
   );
   return (
-    <div className="mb-4 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+    <div className="glass-inset mb-4 space-y-3 p-4">
       <p className="text-xs font-semibold text-white/60">Budgets &amp; cost model (all in estimated tokens)</p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {N("per_agent_tokens", "Daily / agent", "0 = off")}
@@ -107,8 +107,8 @@ function BudgetForm({ config, model, onSaved, onClose }: { config: BudgetConfig;
         <label className="flex items-center gap-1.5"><input type="checkbox" checked={f.high_effort_mode} onChange={(e) => setF({ ...f, high_effort_mode: e.target.checked })} /> high-effort mode</label>
       </div>
       <div className="flex gap-1.5">
-        <button onClick={() => save(false)} className="h-9 flex-1 rounded-lg bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400">Save</button>
-        <button onClick={() => save(true)} className="h-9 rounded-lg border border-amber-500/30 px-3 text-xs text-amber-300 hover:bg-amber-500/10">Save + escalate exceeded</button>
+        <button onClick={() => save(false)} className="h-11 flex-1 rounded-lg bg-emerald-500 text-sm font-semibold text-black shadow-[0_0_18px_rgba(16,185,129,0.15)] hover:bg-emerald-400">Save</button>
+        <button onClick={() => save(true)} className="h-11 rounded-lg border border-amber-500/30 px-3 text-xs text-amber-300 hover:bg-amber-500/10">Save + escalate exceeded</button>
       </div>
     </div>
   );

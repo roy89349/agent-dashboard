@@ -15,8 +15,8 @@ export function SkillCard({
   return (
     <article
       onClick={onClick}
-      className={`flex cursor-pointer flex-col rounded-2xl border p-4 transition-colors ${
-        selected ? "border-emerald-400/60 bg-emerald-500/[0.06]" : "border-white/10 bg-white/[0.03] hover:border-white/25"
+      className={`glass-card flex cursor-pointer flex-col p-4 ${
+        selected ? "glow-ok border-emerald-400/60 bg-emerald-500/[0.07]" : "glass-hover"
       } ${skill.archived ? "opacity-55" : !skill.enabled ? "opacity-70" : ""}`}
     >
       <div className="flex items-start justify-between gap-2">

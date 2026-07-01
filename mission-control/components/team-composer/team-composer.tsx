@@ -152,14 +152,14 @@ export function TeamComposer() {
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] max-md:h-[calc(100dvh-8.5rem)] flex-col">
       {/* toolbar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-white/[0.02] px-3 py-2.5 backdrop-blur-md">
         <Network className="size-4 shrink-0 text-emerald-300" />
-        <select value={selectedId === "__new__" ? "__new__" : selectedId} onChange={(e) => switchTeamGuarded(e.target.value)} className="h-9 max-w-[42vw] rounded-lg border border-white/10 bg-white/5 px-2.5 text-sm text-white outline-none">
+        <select value={selectedId === "__new__" ? "__new__" : selectedId} onChange={(e) => switchTeamGuarded(e.target.value)} className="h-11 max-w-[42vw] rounded-lg border border-white/10 bg-white/5 px-2.5 text-sm text-white outline-none transition-colors focus:border-emerald-500/40 md:h-9">
           <option value="__new__" className="bg-[#0d1322]">＋ New team</option>
           {active.length > 0 && <optgroup label="Teams">{active.map((t) => <option key={t.id} value={t.id} className="bg-[#0d1322]">{t.name}</option>)}</optgroup>}
           {templates.length > 0 && <optgroup label="Templates">{templates.map((t) => <option key={t.id} value={t.id} className="bg-[#0d1322]">{t.name}</option>)}</optgroup>}
         </select>
-        {dirty && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] text-amber-300">unsaved</span>}
+        {dirty && <span className="glow-warn rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-300">unsaved</span>}
 
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
           <TbBtn onClick={() => setAddOpen(true)} icon={Plus} label="Add agent" />
@@ -167,7 +167,7 @@ export function TeamComposer() {
           <TbBtn onClick={() => openTeamPanel("team")} icon={Network} label="Settings" hideLabelMobile />
           <TbBtn onClick={() => doSave(true)} icon={Copy} label="Save as template" hideLabelMobile />
           {stored && <TbBtn onClick={doDelete} icon={Trash2} label="Delete" hideLabelMobile danger />}
-          <button onClick={() => doSave(false)} disabled={!dirty} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-40">
+          <button onClick={() => doSave(false)} disabled={!dirty} className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-emerald-500 px-3.5 text-sm font-semibold text-black shadow-[0_0_18px_rgba(16,185,129,0.2)] transition-colors hover:bg-emerald-400 disabled:opacity-40 disabled:shadow-none md:h-9">
             <Save className="size-4" /> Save
           </button>
         </div>
@@ -175,12 +175,12 @@ export function TeamComposer() {
 
       {/* connect-mode kind picker / edge actions */}
       {(connectMode || selectedEdge != null) && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-black/20 px-3 py-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-black/25 px-3 py-2 text-xs backdrop-blur-md">
           {connectMode && (
             <>
               <span className="text-white/45">New connection:</span>
               {EDGE_KINDS.map((k) => (
-                <button key={k} onClick={() => setConnectKind(k)} className={`rounded-md px-2 py-1 capitalize ${connectKind === k ? "bg-white/15 text-white" : "text-white/50 hover:text-white/80"}`}>{EDGE_STYLE[k].label}</button>
+                <button key={k} onClick={() => setConnectKind(k)} className={`rounded-md px-2 py-1.5 capitalize transition-colors ${connectKind === k ? "bg-white/15 text-white ring-1 ring-white/20" : "text-white/50 hover:bg-white/5 hover:text-white/80"}`}>{EDGE_STYLE[k].label}</button>
               ))}
             </>
           )}
@@ -203,12 +203,12 @@ export function TeamComposer() {
         ) : draft.members.length === 0 && selectedId === "__new__" && T.teams.length === 0 ? (
           <div className="grid h-full place-items-center p-4">
             <EmptyState icon={Network} title="No teams yet" hint="Add agents to compose a team, or build a recommended one for your project type." action={
-              <button onClick={() => setRecOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-black hover:bg-emerald-400"><Sparkles className="size-4" /> Build recommended team</button>
+              <button onClick={() => setRecOpen(true)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-500 px-5 text-sm font-semibold text-black shadow-[0_0_24px_rgba(16,185,129,0.25)] transition-colors hover:bg-emerald-400"><Sparkles className="size-4" /> Build recommended team</button>
             } />
           </div>
         ) : (
           <>
-            <div className="hidden h-full md:block">
+            <div className="hidden h-full p-3 md:block">
               <OrgCanvas
                 team={draft} agentById={T.agentById}
                 selectedAgent={selectedAgent} onSelectAgent={openAgent}
@@ -239,7 +239,7 @@ export function TeamComposer() {
 
 function TbBtn({ onClick, icon: Icon, label, hideLabelMobile, danger }: { onClick: () => void; icon: React.ComponentType<{ className?: string }>; label: string; hideLabelMobile?: boolean; danger?: boolean }) {
   return (
-    <button onClick={onClick} title={label} className={`inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-2.5 text-sm hover:bg-white/5 ${danger ? "text-red-300" : "text-white/70"}`}>
+    <button onClick={onClick} title={label} className={`inline-flex h-11 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 text-sm transition-colors hover:bg-white/5 md:h-9 ${danger ? "text-red-300 hover:bg-red-500/10" : "text-white/70 hover:text-white"}`}>
       <Icon className="size-4" /> <span className={hideLabelMobile ? "hidden sm:inline" : ""}>{label}</span>
     </button>
   );

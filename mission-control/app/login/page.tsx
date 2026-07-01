@@ -27,14 +27,14 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-[#080b14] p-6">
-      <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-2xl border border-white/10 bg-[#0d1322] p-6 shadow-2xl shadow-black/50">
+    <main className="flex min-h-dvh items-center justify-center p-6">
+      <form onSubmit={submit} className="glass w-full max-w-sm space-y-4 p-6 shadow-[0_0_40px_rgba(16,185,129,0.07),0_8px_32px_rgba(0,0,0,0.35)]">
         <div className="flex items-center gap-2.5">
-          <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-indigo-500 text-black">
+          <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-indigo-500 text-black shadow-[0_0_18px_rgba(16,185,129,0.25)]">
             <Radio className="size-4.5" />
           </div>
           <div className="leading-tight">
-            <h1 className="text-base font-semibold text-white">Mission Control</h1>
+            <h1 className="text-base font-semibold tracking-tight text-white">Mission Control</h1>
             <p className="text-xs text-white/40">Sign in to control the dev-fleet.</p>
           </div>
         </div>

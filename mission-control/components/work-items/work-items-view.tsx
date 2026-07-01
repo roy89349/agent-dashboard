@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { Layers, Plus, RefreshCw, X } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/glass";
 import { WorkItemCard } from "./work-item-card";
 import { WorkItemDetailDrawer } from "./work-item-detail";
 import { STATE_LABEL } from "./badges";
@@ -49,32 +52,41 @@ export function WorkItemsView() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-5 pb-24 sm:px-6 md:pb-5">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300"><Layers className="size-[18px]" /></div>
-        <div>
-          <h2 className="text-base font-semibold text-white">Work Items</h2>
-          <p className="text-xs text-white/40">{W.loaded ? `${W.items.length} tracked tasks — handoffs, reviews, blockers` : "Loading…"}</p>
-        </div>
-        <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={() => W.load()} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5"><RefreshCw className="size-3.5" /> <span className="hidden sm:inline">Refresh</span></button>
-          <button onClick={() => setCreating(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-black hover:bg-emerald-400"><Plus className="size-4" /> New</button>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-4"
+        title={
+          <span className="inline-flex items-center gap-2.5">
+            <span className="glass-card grid size-9 place-items-center text-emerald-300"><Layers className="size-[18px]" /></span>
+            Work Items
+          </span>
+        }
+        subtitle={W.loaded ? `${W.items.length} tracked tasks — handoffs, reviews, blockers` : "Loading…"}
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="h-11 sm:h-8" onClick={() => W.load()}>
+              <RefreshCw className="size-3.5" /> <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            <Button variant="accent" className="h-11 sm:h-9 px-3" onClick={() => setCreating(true)}>
+              <Plus className="size-4" /> New
+            </Button>
+          </>
+        }
+      />
 
       {/* filters */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value as WorkItemState | "all")} className="h-8 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white outline-none">
+        <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value as WorkItemState | "all")} className="glass-card glass-hover h-9 rounded-lg px-2 text-xs text-white outline-none">
           <option value="all" className="bg-[#0d1322]">All states</option>
           {WORK_ITEM_STATES.map((s) => <option key={s} value={s} className="bg-[#0d1322]">{STATE_LABEL[s]}</option>)}
         </select>
-        <select value={prioFilter} onChange={(e) => setPrioFilter(e.target.value as WorkItemPriority | "all")} className="h-8 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white outline-none capitalize">
+        <select value={prioFilter} onChange={(e) => setPrioFilter(e.target.value as WorkItemPriority | "all")} className="glass-card glass-hover h-9 rounded-lg px-2 text-xs text-white outline-none capitalize">
           <option value="all" className="bg-[#0d1322]">All priorities</option>
           {WORK_ITEM_PRIORITIES.map((p) => <option key={p} value={p} className="bg-[#0d1322] capitalize">{p}</option>)}
         </select>
       </div>
 
       {!W.loaded ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-28 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />)}</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <div key={i} className="glass-card h-28 animate-pulse" />)}</div>
       ) : shown.length === 0 ? (
         <EmptyState icon={Layers} title={W.items.length === 0 ? "No work items yet" : "Nothing matches this filter"} hint={W.items.length === 0 ? "Create one, or promote a GitHub issue to a tracked task." : "Adjust the filters above."} />
       ) : (
@@ -104,14 +116,14 @@ export function WorkItemsView() {
         <DialogContent>
           <DialogHeader><DialogTitle>New work item</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <input autoFocus value={nt.title} onChange={(e) => setNt({ ...nt, title: e.target.value })} placeholder="What needs to happen?" className="h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40" />
-            <div className="grid grid-cols-2 gap-2">
-              <select value={nt.priority} onChange={(e) => setNt({ ...nt, priority: e.target.value as WorkItemPriority })} className="h-9 rounded-lg border border-white/10 bg-white/5 px-2 text-sm text-white outline-none capitalize">
+            <Input autoFocus value={nt.title} onChange={(e) => setNt({ ...nt, title: e.target.value })} placeholder="What needs to happen?" />
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <select value={nt.priority} onChange={(e) => setNt({ ...nt, priority: e.target.value as WorkItemPriority })} className="h-10 rounded-lg border border-white/10 bg-white/5 px-2 text-sm text-white outline-none capitalize focus:border-emerald-500/40">
                 {WORK_ITEM_PRIORITIES.map((p) => <option key={p} value={p} className="bg-[#0d1322] capitalize">{p}</option>)}
               </select>
-              <input value={nt.issue} onChange={(e) => setNt({ ...nt, issue: e.target.value.replace(/\D/g, "") })} placeholder="link issue # (optional)" className="h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40" />
+              <Input value={nt.issue} onChange={(e) => setNt({ ...nt, issue: e.target.value.replace(/\D/g, "") })} placeholder="link issue # (optional)" />
             </div>
-            <button onClick={create} disabled={!nt.title.trim()} className="h-10 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">Create</button>
+            <Button variant="accent" className="h-11 w-full rounded-xl font-semibold" onClick={create} disabled={!nt.title.trim()}>Create</Button>
           </div>
         </DialogContent>
       </Dialog>

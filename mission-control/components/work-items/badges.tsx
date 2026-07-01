@@ -8,8 +8,8 @@ export function ModeBadge({ mode }: { mode: WorkItemMode }) {
 }
 
 export const STATE_TONE: Record<WorkItemState, Tone> = {
-  queued: "slate", running: "indigo", blocked: "red", waiting_user: "amber",
-  review: "teal", failed: "red", done: "emerald", cancelled: "slate",
+  queued: "slate", running: "emerald", blocked: "red", waiting_user: "amber",
+  review: "indigo", failed: "red", done: "emerald", cancelled: "slate",
 };
 export const STATE_LABEL: Record<WorkItemState, string> = {
   queued: "Queued", running: "Running", blocked: "Blocked", waiting_user: "Waiting on you",

@@ -75,19 +75,19 @@ export function WarRoomView() {
     <div className="mx-auto w-full max-w-7xl px-3 py-4 pb-24 sm:px-5 md:pb-5">
       {/* ── fleet health strip ── */}
       <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9">
-        <Tile icon={Radio} label="Fleet" value={h.mode} tone={h.online ? "emerald" : h.mode === "stopped" ? "rose" : "amber"} sub={h.online ? "online" : "offline"} />
+        <Tile icon={Radio} label="Fleet" value={h.mode} tone={h.online ? "emerald" : h.mode === "stopped" ? "rose" : "amber"} sub={h.online ? "online" : "offline"} glow={h.online ? undefined : "glow-danger"} />
         <Tile icon={Zap} label="Workers" value={`${h.workers.active}${h.workers.max ? `/${h.workers.max}` : ""}`} tone="slate" />
         <Tile icon={Users} label="Agents" value={`${h.agents.active}/${h.agents.total}`} tone="slate" sub="active" />
-        <Tile icon={GitBranch} label="Workflows" value={h.workflows_running} tone={h.workflows_running ? "indigo" : "slate"} />
-        <Tile icon={Inbox} label="Decisions" value={h.open_decisions} tone={h.open_decisions ? "amber" : "slate"} />
-        <Tile icon={Ban} label="Blockers" value={h.blockers} tone={h.blockers ? "rose" : "slate"} />
-        <Tile icon={GitPullRequest} label="PRs ready" value={h.prs_ready} tone={h.prs_ready ? "emerald" : "slate"} />
-        <Tile icon={ShieldAlert} label="Breaker" value={h.breaker.tripped ? "tripped" : "ok"} tone={h.breaker.tripped ? "rose" : "emerald"} sub={h.breaker.fails ? `${h.breaker.fails} fails` : undefined} />
-        <Tile icon={Gauge} label="Budget" value={h.budget_warning ?? "ok"} tone={h.budget_warning ? "amber" : "slate"} />
+        <Tile icon={GitBranch} label="Workflows" value={h.workflows_running} tone={h.workflows_running ? "indigo" : "slate"} glow={h.workflows_running ? "glow-info" : undefined} />
+        <Tile icon={Inbox} label="Decisions" value={h.open_decisions} tone={h.open_decisions ? "amber" : "slate"} glow={h.open_decisions ? "glow-warn" : undefined} />
+        <Tile icon={Ban} label="Blockers" value={h.blockers} tone={h.blockers ? "rose" : "slate"} glow={h.blockers ? "glow-danger" : undefined} />
+        <Tile icon={GitPullRequest} label="PRs ready" value={h.prs_ready} tone={h.prs_ready ? "emerald" : "slate"} glow={h.prs_ready ? "glow-ok" : undefined} />
+        <Tile icon={ShieldAlert} label="Breaker" value={h.breaker.tripped ? "tripped" : "ok"} tone={h.breaker.tripped ? "rose" : "emerald"} sub={h.breaker.fails ? `${h.breaker.fails} fails` : undefined} glow={h.breaker.tripped ? "glow-danger" : undefined} />
+        <Tile icon={Gauge} label="Budget" value={h.budget_warning ?? "ok"} tone={h.budget_warning ? "amber" : "slate"} glow={h.budget_warning ? "glow-warn" : undefined} />
       </div>
 
       {/* ── filters ── */}
-      <div className="mb-4 flex flex-wrap items-center gap-1.5">
+      <div className="glass-card mb-4 flex flex-wrap items-center gap-1.5 px-2.5 py-2">
         {sel(f.status, (v) => setF({ ...f, status: v }), STATUS_ORDER.map((s) => ({ v: s, label: STATUS_META[s].label })), "All status")}
         {sel(f.team, (v) => setF({ ...f, team: v }), (snap.facets.teams ?? []).map((t) => ({ v: t, label: t })), "All teams")}
         {sel(f.agent, (v) => setF({ ...f, agent: v }), snap.facets.agents.map((a) => ({ v: a.id, label: a.name })), "All agents")}
@@ -108,12 +108,12 @@ export function WarRoomView() {
             ))}
           </div>
           {agents.length === 0 ? (
-            <p className="rounded-xl border border-white/10 bg-white/[0.02] p-6 text-center text-sm text-white/40">No agents match this filter.</p>
+            <p className="glass-inset p-6 text-center text-sm text-white/40">No agents match this filter.</p>
           ) : (
             <div className="space-y-4">
               {agentsByStatus.map((g) => (
                 <div key={g.status}>
-                  <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/40"><span className={`size-2 rounded-full ${STATUS_META[g.status].dot}`} /> {STATUS_META[g.status].label} <span className="text-white/25">{g.items.length}</span></p>
+                  <p className={`mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${g.status === "waiting_user" ? "text-amber-300/80" : g.status === "blocked" || g.status === "failed" ? "text-red-300/80" : "text-white/40"}`}><span className={`size-2 rounded-full ${STATUS_META[g.status].dot}`} /> {STATUS_META[g.status].label} <span className="text-white/25">{g.items.length}</span></p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {g.items.map((a) => <AgentCard key={a.id} a={a} />)}
                   </div>
@@ -127,9 +127,9 @@ export function WarRoomView() {
         <section>
           <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/40"><Activity className="size-3.5" /> Timeline <span className="text-white/25">{events.length}</span></p>
           {events.length === 0 ? (
-            <p className="rounded-xl border border-white/10 bg-white/[0.02] p-6 text-center text-sm text-white/40">No events match this filter.</p>
+            <p className="glass-inset p-6 text-center text-sm text-white/40">No events match this filter.</p>
           ) : (
-            <ol className="space-y-0.5">
+            <ol className="glass-inset space-y-0.5 p-1.5">
               {events.map((e) => <EventRow key={e.id} e={e} repo={repo} open={openEvent === e.id} onToggle={() => setOpenEvent(openEvent === e.id ? null : e.id)} />)}
             </ol>
           )}
@@ -140,12 +140,12 @@ export function WarRoomView() {
 }
 
 const TILE_TONE: Record<string, string> = {
-  emerald: "border-emerald-500/25 text-emerald-300", indigo: "border-indigo-500/25 text-indigo-300",
-  amber: "border-amber-500/25 text-amber-300", rose: "border-rose-500/25 text-rose-300", slate: "border-white/10 text-white/70",
+  emerald: "text-emerald-300", indigo: "text-indigo-300",
+  amber: "text-amber-300", rose: "text-rose-300", slate: "text-white/70",
 };
-function Tile({ icon: Icon, label, value, tone, sub }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode; tone: string; sub?: string }) {
+function Tile({ icon: Icon, label, value, tone, sub, glow }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode; tone: string; sub?: string; glow?: string }) {
   return (
-    <div className={`rounded-xl border bg-white/[0.02] px-2.5 py-2 ${TILE_TONE[tone] ?? TILE_TONE.slate}`}>
+    <div className={`glass-card px-2.5 py-2 ${TILE_TONE[tone] ?? TILE_TONE.slate} ${glow ?? ""}`}>
       <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/40"><Icon className="size-3" /> {label}</div>
       <div className="mt-0.5 truncate text-sm font-semibold capitalize tabular-nums">{value}</div>
       {sub && <div className="text-[10px] text-white/30">{sub}</div>}
@@ -153,10 +153,16 @@ function Tile({ icon: Icon, label, value, tone, sub }: { icon: React.ComponentTy
   );
 }
 
+// waiting-on-you / blocked / failed buckets get a quiet functional accent so they read first
+const CARD_ACCENT: Partial<Record<AgentLiveStatus, string>> = {
+  waiting_user: "border-amber-500/35 bg-amber-500/[0.04]",
+  blocked: "border-red-500/35 bg-red-500/[0.04]",
+  failed: "border-red-500/35 bg-red-500/[0.04]",
+};
 function AgentCard({ a }: { a: AgentActivity }) {
   const m = STATUS_META[a.status];
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+    <div className={`glass-card glass-hover p-2.5 ${CARD_ACCENT[a.status] ?? ""}`}>
       <div className="flex items-center gap-2">
         <AgentAvatar name={a.name} role={a.role} className="size-6 text-[10px]" />
         <div className="min-w-0 flex-1">
@@ -192,7 +198,7 @@ function EventRow({ e, repo, open, onToggle }: { e: WarEvent; repo: string | nul
       <button onClick={onToggle} className="flex w-full items-center gap-2 px-2 py-1.5 text-left">
         <span className={`size-2 shrink-0 rounded-full ${SEV_DOT[e.severity]}`} />
         <Icon className="size-3.5 shrink-0 text-white/35" />
-        <span className="min-w-0 flex-1 truncate text-[12px] text-white/80">{e.title}{e.count > 1 && <span className="ml-1 rounded bg-white/10 px-1 text-[10px] text-white/50">×{e.count}</span>}</span>
+        <span className={`min-w-0 flex-1 truncate text-[12px] ${e.severity === "danger" ? "text-red-200/90" : e.severity === "warn" ? "text-amber-200/90" : "text-white/80"}`}>{e.title}{e.count > 1 && <span className="ml-1 rounded bg-white/10 px-1 text-[10px] text-white/50">×{e.count}</span>}</span>
         {e.role && <span className="hidden shrink-0 text-[10px] text-white/30 sm:inline">{e.role}</span>}
         <span className="shrink-0 text-[10px] tabular-nums text-white/30">{rel(e.ts)}</span>
         <ChevronRight className={`size-3 shrink-0 text-white/25 transition-transform ${open ? "rotate-90" : ""}`} />

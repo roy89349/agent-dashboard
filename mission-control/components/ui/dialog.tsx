@@ -36,7 +36,7 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         "fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%]",
-        "rounded-2xl border border-white/10 bg-[#0d1322] p-6 text-[#e6eaf2] shadow-2xl shadow-black/50",
+        "glass-overlay rounded-2xl p-6 text-[#e6eaf2]",
         "[animation:mc-fade-in_0.18s_ease-out]",
         className
       )}

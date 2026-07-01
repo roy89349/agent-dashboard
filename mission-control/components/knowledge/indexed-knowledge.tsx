@@ -65,29 +65,29 @@ export function IndexedKnowledge() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-4 pb-24 sm:px-6 md:pb-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5">
-          <Search className="size-4 text-white/40" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the project brain…" className="h-9 w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30" />
+        <div className="glass-card flex min-w-0 flex-1 items-center gap-2.5 px-3.5 transition-colors focus-within:border-emerald-500/40">
+          <Search className="size-[18px] shrink-0 text-white/40" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the project brain…" className="h-11 w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30" />
         </div>
-        <button onClick={reindex} disabled={busy || !vaultOk} title={vaultOk ? "Index the vault folder" : "VAULT_DIR not configured"} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-2.5 text-xs text-white/60 hover:bg-white/5 disabled:opacity-40"><RefreshCw className={`size-3.5 ${busy ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Reindex</span></button>
-        <button onClick={() => setAdding(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-black hover:bg-emerald-400"><Plus className="size-4" /> Add</button>
+        <button onClick={reindex} disabled={busy || !vaultOk} title={vaultOk ? "Index the vault folder" : "VAULT_DIR not configured"} className="glass-card glass-hover inline-flex h-11 items-center gap-1.5 px-3 text-xs text-white/60 hover:text-white/90 disabled:opacity-40"><RefreshCw className={`size-3.5 ${busy ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Reindex</span></button>
+        <button onClick={() => setAdding(true)} className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-black shadow-[0_0_18px_rgba(16,185,129,0.18)] hover:bg-emerald-400"><Plus className="size-4" /> Add</button>
       </div>
 
       <div className="mb-3 flex flex-wrap gap-1.5">
         <Sel value={ftype} onChange={setFtype} opts={TYPES.map((t) => ({ v: t, l: label(t) }))} allLabel="All types" />
         {teams.length > 0 && <Sel value={fteam} onChange={setFteam} opts={teams.map((t) => ({ v: t.id, l: t.name }))} allLabel="All teams" />}
         {allTags.length > 0 && <Sel value={ftag} onChange={setFtag} opts={allTags.map((t) => ({ v: t, l: t }))} allLabel="All tags" />}
-        {!vaultOk && <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/25 px-2 py-1 text-[11px] text-amber-300">VAULT_DIR not set — file indexing off (manual items + instructions still work)</span>}
+        {!vaultOk && <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-2 py-1 text-[11px] text-amber-300 backdrop-blur-md">VAULT_DIR not set — file indexing off (manual items + instructions still work)</span>}
       </div>
 
       {!loaded ? (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-xl border border-white/10 bg-white/[0.03]" />)}</div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <div key={i} className="glass-card h-20 animate-pulse" />)}</div>
       ) : shown.length === 0 ? (
         <EmptyState icon={BookOpen} title={items.length === 0 ? "The project brain is empty" : "Nothing matches"} hint={items.length === 0 ? "Add a note, or set VAULT_DIR and Reindex to pull in your docs. Secret files (.env, keys, credentials) are never indexed." : "Adjust the filters."} />
       ) : (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {shown.map((i) => (
-            <article key={i.id} onClick={() => setSel(i.id)} className={`cursor-pointer rounded-xl border p-3 transition-colors ${sel === i.id ? "border-emerald-400/60 bg-emerald-500/[0.06]" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}>
+            <article key={i.id} onClick={() => setSel(i.id)} className={`glass-card glass-hover cursor-pointer p-3 ${sel === i.id ? "glow-ok" : ""}`}>
               <div className="flex items-start justify-between gap-2">
                 <p className="min-w-0 text-sm font-medium leading-snug text-white/90">{i.title}</p>
                 {i.safe_to_use ? <ShieldCheck className="size-4 shrink-0 text-emerald-400/70" /> : <span title="secret/sensitive content detected — flagged unsafe"><ShieldAlert className="size-4 shrink-0 text-amber-400" /></span>}
@@ -96,7 +96,7 @@ export function IndexedKnowledge() {
                 <Badge tone={i.type === "team_instruction" ? "teal" : "slate"}>{label(i.type)}</Badge>
                 {i.team_id && <span className="text-[10px] text-white/40">{teamName(i.team_id)}</span>}
                 {i.allowed_agents.length > 0 && <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-300/70"><Users className="size-2.5" /> restricted</span>}
-                {i.tags.slice(0, 3).map((t) => <span key={t} className="rounded bg-white/5 px-1.5 text-[10px] text-white/45">{t}</span>)}
+                {i.tags.slice(0, 3).map((t) => <span key={t} className="rounded-md border border-white/[0.07] bg-white/[0.05] px-1.5 py-px text-[10px] text-white/45">{t}</span>)}
               </div>
               {i.summary && <p className="mt-1 line-clamp-2 text-[11px] text-white/45">{i.summary}</p>}
             </article>
@@ -160,9 +160,9 @@ function KnowledgeDrawer({ id, open, onClose, agents, teams, onChanged }: { id: 
               <p className="text-[15px] font-medium text-white">{item.title}</p>
               {item.summary && <p className="text-sm text-white/60">{item.summary}</p>}
               {(item.source_path || item.source_url) && <p className="text-[11px] text-white/35">source: {item.source_path ?? item.source_url}</p>}
-              {item.content_preview && <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2.5 text-[11px] text-white/60">{item.content_preview}</pre>}
+              {item.content_preview && <pre className="glass-inset max-h-56 overflow-auto whitespace-pre-wrap rounded-lg p-2.5 text-[11px] text-white/60">{item.content_preview}</pre>}
 
-              <div className="space-y-2.5 rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="glass-inset space-y-2.5 rounded-xl p-3">
                 <p className="text-xs font-medium text-white/50">Metadata &amp; access</p>
                 <label className="block text-xs text-white/50">Type
                   <select value={type} onChange={(e) => setType(e.target.value as KnowledgeType)} className={`mt-1 ${inp} capitalize`}>{TYPES.map((t) => <option key={t} value={t} className="bg-[#0d1322] capitalize">{label(t)}</option>)}</select>
@@ -175,8 +175,8 @@ function KnowledgeDrawer({ id, open, onClose, agents, teams, onChanged }: { id: 
                   <input value={allowed} onChange={(e) => setAllowed(e.target.value)} placeholder={agents.slice(0, 3).map((a) => a.role).join(", ")} className={`mt-1 ${inp}`} />
                 </label>
                 <div className="flex gap-1.5">
-                  <button onClick={saveMeta} className="h-9 flex-1 rounded-lg bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400">Save</button>
-                  <button onClick={archive} className="inline-flex h-9 items-center gap-1 rounded-lg border border-rose-500/30 px-3 text-xs text-rose-300 hover:bg-rose-500/10"><Archive className="size-3.5" /> Archive</button>
+                  <button onClick={saveMeta} className="h-11 flex-1 rounded-lg bg-emerald-500 text-sm font-semibold text-black shadow-[0_0_18px_rgba(16,185,129,0.15)] hover:bg-emerald-400">Save</button>
+                  <button onClick={archive} className="inline-flex h-11 items-center gap-1 rounded-lg border border-red-500/30 px-3 text-xs text-red-300 hover:bg-red-500/10"><Archive className="size-3.5" /> Archive</button>
                 </div>
               </div>
             </div>
@@ -208,7 +208,7 @@ function AddDialog({ open, onOpenChange, teams, onAdded }: { open: boolean; onOp
           </div>
           <textarea value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} rows={4} placeholder="Content (redacted + secret-scrubbed before storing)" className={`resize-none ${inp} py-2`} />
           <input value={f.tags} onChange={(e) => setF({ ...f, tags: e.target.value })} placeholder="tags, comma-separated" className={`h-9 ${inp}`} />
-          <button onClick={add} className="h-10 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400">Add to the project brain</button>
+          <button onClick={add} className="h-11 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black shadow-[0_0_18px_rgba(16,185,129,0.18)] hover:bg-emerald-400">Add to the project brain</button>
         </div>
       </DialogContent>
     </Dialog>

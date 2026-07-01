@@ -118,7 +118,7 @@ export function CommandPalette({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
         <Dialog.Content
-          className="fixed left-1/2 top-[18%] z-50 w-[92vw] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border border-white/10 bg-[#0d1322] shadow-2xl mc-fade-in"
+          className="glass-overlay fixed left-1/2 top-[18%] z-50 w-[92vw] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl mc-fade-in"
           aria-describedby={undefined}
         >
           <Dialog.Title className="sr-only">Command palette</Dialog.Title>
@@ -155,11 +155,19 @@ export function CommandPalette({
                     <button
                       onMouseEnter={() => setIdx(i)}
                       onClick={() => it.run()}
-                      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm ${
-                        i === idx ? "bg-white/10 text-white" : "text-white/70"
+                      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors ${
+                        i === idx
+                          ? "bg-white/10 text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-white/10"
+                          : "text-white/70"
                       }`}
                     >
-                      <Icon className="size-4 text-white/50" />
+                      <span
+                        className={`grid size-6 shrink-0 place-items-center rounded-md border ${
+                          i === idx ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-white/10 bg-white/5 text-white/50"
+                        }`}
+                      >
+                        <Icon className="size-3.5" />
+                      </span>
                       <span className="flex-1">{it.label}</span>
                       {it.hint && <span className="text-xs text-white/30">{it.hint}</span>}
                       {i === idx && <CornerDownLeft className="size-3.5 text-white/30" />}

@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { ClipboardList, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { WorkItem } from "@/lib/work-items";
 
 const lines = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean);
@@ -26,11 +27,11 @@ function PlanView({ plan }: { plan: Record<string, unknown> }) {
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   const list = (v: unknown) => (Array.isArray(v) ? (v as string[]) : []);
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) =>
-    children ? <div><p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">{title}</p><div className="mt-0.5 whitespace-pre-wrap text-sm text-white/75">{children}</div></div> : null;
+    children ? <div className="border-b border-white/5 pb-2.5 last:border-0 last:pb-0"><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-200/60">{title}</p><div className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{children}</div></div> : null;
   const ul = (xs: string[]) => (xs.length ? <ul className="list-disc pl-4">{xs.map((x, i) => <li key={i}>{x}</li>)}</ul> : null);
   const steps = list(plan.workflow_steps);
   return (
-    <div className="space-y-2.5 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-3">
+    <div className="glow-warn space-y-2.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-3.5 backdrop-blur-[10px]">
       <p className="flex items-center gap-1.5 text-xs font-medium text-amber-200"><ClipboardList className="size-3.5" /> Plan</p>
       <Section title="Goal">{str(plan.goal)}</Section>
       <Section title="Approach">{str(plan.approach)}</Section>
@@ -64,7 +65,7 @@ function PlanForm({ id, submitPlan, onDone }: { id: string; submitPlan: (id: str
     <textarea value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} rows={rows} placeholder={ph} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/25 outline-none focus:border-emerald-500/40" />
   );
   return (
-    <div className="space-y-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3">
+    <div className="glow-warn space-y-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3.5 backdrop-blur-[10px]">
       <p className="flex items-center gap-1.5 text-xs font-medium text-amber-200"><ClipboardList className="size-3.5" /> Plan-only — compose a plan for approval (nothing is changed yet)</p>
       {T("goal", "Goal — what are we achieving?")}
       {T("approach", "Approach — summary")}
@@ -75,9 +76,9 @@ function PlanForm({ id, submitPlan, onDone }: { id: string; submitPlan: (id: str
       {T("test_plan", "Test plan")}
       {T("cost_estimate", "Estimated cost / time", 1)}
       {T("approval_question", "Approval question (what you're asking Roy)", 1)}
-      <button onClick={go} disabled={busy} className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">
+      <Button variant="accent" className="h-11 w-full rounded-xl font-semibold" onClick={go} disabled={busy}>
         <Send className="size-4" /> {busy ? "Submitting…" : "Submit plan for approval"}
-      </button>
+      </Button>
     </div>
   );
 }

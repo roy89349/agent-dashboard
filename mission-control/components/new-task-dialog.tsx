@@ -61,14 +61,17 @@ export function NewTaskDialog() {
             onChange={(e) => setTitle(e.target.value)}
           />
           <textarea
-            className="min-h-28 w-full rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/20"
+            className="min-h-28 w-full resize-y rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white backdrop-blur-sm transition-colors placeholder:text-white/30 outline-none focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/20"
             placeholder="Optional: more context, acceptance criteria, files involved…"
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
-          <Button type="submit" size="lg" className="w-full" disabled={busy || !title.trim()}>
+          <Button type="submit" variant="accent" size="lg" className="w-full" disabled={busy || !title.trim()}>
             {busy ? "Creating…" : "Create (agent-ready)"}
           </Button>
+          <p className="text-center text-[11px] text-white/35">
+            Created as <span className="font-medium text-white/50">agent-ready</span> — the fleet picks it up automatically.
+          </p>
         </form>
       </DialogContent>
     </Dialog>

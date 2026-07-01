@@ -5,14 +5,26 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Megaphone, RefreshCw, Send, Sparkles, Users, AlertTriangle, ChevronRight } from "lucide-react";
+import { Megaphone, RefreshCw, Send, Sparkles, Users, AlertTriangle, ChevronRight, Smartphone } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Badge, type Tone } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PageHeader, SectionLabel } from "@/components/ui/glass";
 import { useCommunication } from "./use-communication";
 import type { Summary, SourceRef, SummaryType, AskResult } from "@/lib/communication";
 
 const TYPES: { v: SummaryType; label: string }[] = [
   { v: "live", label: "Live update" }, { v: "hourly", label: "Hourly" }, { v: "daily_standup", label: "Daily standup" }, { v: "end_of_day", label: "End of day" },
 ];
+// summary-type chip on each card: emerald=live, indigo=standup/info, teal=end-of-day, amber=urgent
+const TYPE_CHIP: Record<string, { label: string; tone: Tone }> = {
+  live: { label: "live", tone: "emerald" },
+  hourly: { label: "hourly", tone: "slate" },
+  daily_standup: { label: "standup", tone: "indigo" },
+  end_of_day: { label: "end of day", tone: "teal" },
+  urgent_question: { label: "urgent", tone: "amber" },
+};
 const SECTIONS: { key: keyof Summary["sections"]; label: string; tone: string }[] = [
   { key: "done", label: "✅ Done", tone: "text-emerald-300" },
   { key: "running", label: "🔄 Running", tone: "text-indigo-300" },
@@ -56,30 +68,37 @@ export function UpdatesView() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-5 pb-24 sm:px-6 md:pb-5">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300"><Megaphone className="size-[18px]" /></div>
-        <div>
-          <h2 className="text-base font-semibold text-white">Updates</h2>
-          <p className="text-xs text-white/40">{C.loaded ? "One voice from the whole team — summaries, not ten chats" : "Loading…"}</p>
-        </div>
-        <button onClick={() => C.load()} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5"><RefreshCw className="size-3.5" /> <span className="hidden sm:inline">Refresh</span></button>
-      </div>
+      <PageHeader
+        className="mb-5"
+        title={
+          <span className="inline-flex items-center gap-2.5">
+            <span className="glass-card grid size-9 place-items-center rounded-xl text-emerald-300"><Megaphone className="size-[18px]" /></span>
+            Updates
+          </span>
+        }
+        subtitle={C.loaded ? "One voice from the whole team — summaries, not ten chats" : "Loading…"}
+        actions={
+          <Button variant="outline" size="sm" className="h-10" onClick={() => C.load()}>
+            <RefreshCw className="size-3.5" /> <span className="hidden sm:inline">Refresh</span>
+          </Button>
+        }
+      />
 
       {/* generate + ask */}
-      <div className="mb-4 space-y-2 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+      <div className="glass mb-4 space-y-2.5 p-3.5">
         <div className="flex flex-wrap items-center gap-2">
-          <select value={type} onChange={(e) => setType(e.target.value as SummaryType)} className="h-9 rounded-lg border border-white/10 bg-white/5 px-2 text-sm text-white outline-none">
+          <select value={type} onChange={(e) => setType(e.target.value as SummaryType)} className="h-11 rounded-lg border border-white/10 bg-white/5 px-2 text-sm text-white outline-none focus:border-emerald-500/40">
             {TYPES.map((t) => <option key={t.v} value={t.v} className="bg-[#0d1322]">{t.label}</option>)}
           </select>
           <label className="inline-flex items-center gap-1.5 text-xs text-white/60"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> send to phone</label>
-          <button onClick={gen} disabled={busy} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"><Sparkles className="size-4" /> Generate</button>
+          <Button variant="accent" size="sm" className="h-11 px-3.5" onClick={gen} disabled={busy}><Sparkles className="size-4" /> Generate</Button>
         </div>
         <div className="flex items-center gap-2">
-          <input value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => e.key === "Enter" && doAsk()} placeholder="Ask the team… e.g. what's blocked on payments?" className="h-9 flex-1 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40" />
-          <button onClick={doAsk} disabled={busy || !question.trim()} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-sm text-white/80 hover:bg-white/5 disabled:opacity-50"><Send className="size-4" /> Ask</button>
+          <Input value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => e.key === "Enter" && doAsk()} placeholder="Ask the team… e.g. what's blocked on payments?" className="h-11 flex-1" />
+          <Button variant="outline" size="sm" className="h-11 px-3.5" onClick={doAsk} disabled={busy || !question.trim()}><Send className="size-4" /> Ask</Button>
         </div>
         {answer && (
-          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="glass-inset p-3">
             <p className="text-sm text-white/80">{answer.answer}</p>
             <div className="mt-1.5 space-y-1">{answer.refs.map((r, i) => <RefLine key={i} r={r} repo={repo} />)}</div>
           </div>
@@ -88,7 +107,7 @@ export function UpdatesView() {
 
       {/* communicators */}
       {C.communicators.length > 0 && (
-        <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+        <div className="glass-card mb-4 p-3">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/50"><Users className="size-3.5" /> Communication agent per team</p>
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {C.communicators.map((c) => (
@@ -107,20 +126,20 @@ export function UpdatesView() {
       {/* urgent questions */}
       {urgent.length > 0 && (
         <section className="mb-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-300"><AlertTriangle className="size-3.5" /> Urgent</p>
+          <SectionLabel className="mb-2 flex items-center gap-1.5 text-amber-300"><AlertTriangle className="size-3.5" /> Urgent</SectionLabel>
           <div className="space-y-2">{urgent.map((s) => <SummaryCard key={s.id} s={s} repo={repo} />)}</div>
         </section>
       )}
 
       {!C.loaded ? (
-        <div className="space-y-3">{[0, 1].map((i) => <div key={i} className="h-40 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />)}</div>
+        <div className="space-y-3">{[0, 1].map((i) => <div key={i} className="glass-card h-40 animate-pulse" />)}</div>
       ) : feed.length === 0 ? (
         <EmptyState icon={Megaphone} title="No updates yet" hint="Generate a live update or a daily standup — the Communication Agent summarises the whole floor." />
       ) : (
         <div className="space-y-5">
           {byDay.map(([day, items]) => (
             <section key={day}>
-              <div className="mb-2 flex items-center gap-2"><h3 className="text-xs font-semibold uppercase tracking-wider text-white/45">{day}</h3><span className="h-px flex-1 bg-white/10" /></div>
+              <div className="mb-2 flex items-center gap-2"><SectionLabel>{day}</SectionLabel><span className="h-px flex-1 bg-white/10" /></div>
               <div className="space-y-2">{items.map((s) => <SummaryCard key={s.id} s={s} repo={repo} />)}</div>
             </section>
           ))}
@@ -133,14 +152,23 @@ export function UpdatesView() {
 function SummaryCard({ s, repo }: { s: Summary; repo: string | null }) {
   const [open, setOpen] = useState(false);
   const total = SECTIONS.reduce((n, sec) => n + s.sections[sec.key].length, 0);
+  const chip = TYPE_CHIP[s.type];
+  const isUrgent = s.type === "urgent_question";
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 text-left">
-        <span className="min-w-0 flex-1"><span className="text-sm font-medium text-white/90">{s.title}</span> <span className="text-[11px] text-white/35">· {new Date(s.created_at).toLocaleTimeString()}{s.delivered_phone ? " · 📱" : ""}</span></span>
+    <article className={`glass-card glass-hover p-3.5 ${isUrgent ? "glow-warn border-amber-500/25" : ""}`}>
+      <button onClick={() => setOpen(!open)} className="flex min-h-11 w-full items-center gap-2 text-left">
+        <span className="min-w-0 flex-1">
+          <span className="mr-1.5 inline-flex flex-wrap items-center gap-1.5 align-middle">
+            {chip && <Badge tone={chip.tone}>{chip.label}</Badge>}
+            {s.delivered_phone && <Badge tone="slate" className="gap-1"><Smartphone className="size-3" /> phone</Badge>}
+          </span>
+          <span className="text-sm font-medium text-white/90">{s.title}</span>{" "}
+          <span className="text-[11px] text-white/35">· {new Date(s.created_at).toLocaleTimeString()}</span>
+        </span>
         <span className="text-[11px] text-white/30">{total} items</span>
         <ChevronRight className={`size-3.5 text-white/25 transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
-      <div className={`mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 ${open ? "" : "hidden"}`}>
+      <div className={`glass-inset mt-2 grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 ${open ? "" : "hidden"}`}>
         {SECTIONS.map((sec) => {
           const refs = s.sections[sec.key];
           if (refs.length === 0) return null;

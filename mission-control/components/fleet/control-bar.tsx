@@ -34,11 +34,17 @@ export function ControlBar() {
   const online = status?.online ?? false;
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+    <section className="glass p-4">
       {/* stats hero */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <div className="flex items-center gap-2">
-          <span className={`size-2.5 rounded-full ${online ? "bg-emerald-400 animate-pulse" : "bg-red-500"}`} />
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`grid size-8 place-items-center rounded-lg ${
+              online ? "bg-emerald-500/15 glow-ok" : "bg-red-500/10 glow-danger"
+            }`}
+          >
+            <span className={`size-2.5 rounded-full ${online ? "bg-emerald-400 animate-pulse" : "bg-red-500"}`} />
+          </span>
           <span className="text-sm font-semibold">Fleet {online ? "online" : "offline"}</span>
           {status?.pause_reason && (
             <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300">
@@ -120,7 +126,7 @@ function Stat({ label, value, danger }: { label: string; value: string | number;
 
 function Stepper({ label, value, busy, onDelta }: { label: string; value: number | null; busy: boolean; onDelta: (d: number) => void }) {
   return (
-    <div className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1">
+    <div className="glass-card flex items-center gap-1 px-2 py-1">
       <span className="text-xs text-white/50">{label}</span>
       <button className="text-white/60 hover:text-white disabled:opacity-30" disabled={busy} onClick={() => onDelta(-1)} aria-label={`${label} down`}>
         <Minus className="size-3.5" />
@@ -135,7 +141,7 @@ function Stepper({ label, value, busy, onDelta }: { label: string; value: number
 
 function Select({ label, value, options, busy, onChange }: { label: string; value: string; options: string[]; busy: boolean; onChange: (v: string) => void }) {
   return (
-    <label className="flex items-center gap-1.5 rounded-lg bg-white/5 px-2 py-1 text-xs text-white/50">
+    <label className="glass-card flex items-center gap-1.5 px-2 py-1 text-xs text-white/50">
       {label}
       <select className="bg-transparent text-sm font-semibold text-white outline-none" value={value} disabled={busy} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (

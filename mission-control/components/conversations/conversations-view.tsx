@@ -45,22 +45,24 @@ export function ConversationsView() {
   return (
     <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col px-3 py-4 sm:px-6">
       <div className="mb-3 flex items-center gap-3">
-        <div className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300"><MessagesSquare className="size-[18px]" /></div>
-        <div className="min-w-0 flex-1"><h2 className="text-base font-semibold text-white">Conversations</h2><p className="truncate text-xs text-white/40">One structure — no chat-per-agent chaos</p></div>
-        <div className="relative w-40 sm:w-64">
-          <Search className="pointer-events-none absolute left-2 top-2 size-3.5 text-white/30" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="h-8 w-full rounded-lg border border-white/10 bg-white/5 pl-7 pr-2 text-xs text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40" />
+        <div className="glass-card grid size-10 shrink-0 place-items-center text-emerald-300"><MessagesSquare className="size-[18px]" /></div>
+        <div className="min-w-0 flex-1"><h2 className="text-base font-semibold tracking-tight text-white">Conversations</h2><p className="truncate text-xs text-white/40">One structure — no chat-per-agent chaos</p></div>
+        <div className="glass-card flex w-40 items-center gap-1.5 px-2.5 transition-colors focus-within:border-emerald-500/40 sm:w-64">
+          <Search className="pointer-events-none size-3.5 shrink-0 text-white/30" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="h-10 w-full bg-transparent text-xs text-white placeholder:text-white/30 outline-none" />
         </div>
       </div>
 
-      {/* tabs — Team most prominent */}
-      <div className="mb-3 flex gap-1 overflow-x-auto pb-1">
-        {TABS.map((t) => (
-          <button key={t.id} onClick={() => { setTab(t.id); setActive(null); setQ(""); }} className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${tab === t.id ? "bg-white/10 text-white" : "text-white/50 hover:bg-white/5"} ${t.id === "team" ? "ring-1 ring-emerald-500/20" : ""}`}>
-            <t.icon className="size-3.5" /> {t.label}
-            {grouped && t.id !== "agent" && t.id !== "summary" && grouped[t.id]?.length > 0 && <span className="rounded-full bg-white/10 px-1.5 text-[10px] text-white/50">{grouped[t.id].length}</span>}
-          </button>
-        ))}
+      {/* tabs — premium segmented control, Team most prominent */}
+      <div className="mb-3 overflow-x-auto pb-1">
+        <div className="glass-card inline-flex items-center gap-1 rounded-xl p-1">
+          {TABS.map((t) => (
+            <button key={t.id} onClick={() => { setTab(t.id); setActive(null); setQ(""); }} className={`inline-flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === t.id ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" : "text-white/50 hover:bg-white/5 hover:text-white/75"} ${t.id === "team" ? (tab === "team" ? "ring-1 ring-emerald-500/40" : "ring-1 ring-emerald-500/20") : ""}`}>
+              <t.icon className={`size-3.5 ${t.id === "team" ? "text-emerald-300/80" : ""}`} /> {t.label}
+              {grouped && t.id !== "agent" && t.id !== "summary" && grouped[t.id]?.length > 0 && <span className="rounded-full bg-white/10 px-1.5 text-[10px] text-white/50">{grouped[t.id].length}</span>}
+            </button>
+          ))}
+        </div>
       </div>
 
       {results ? (
@@ -72,7 +74,7 @@ export function ConversationsView() {
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
           <ThreadList threads={threads} active={active} tab={tab} onSelect={setActive} onCreated={(id) => { loadGrouped(); setActive(id); }} />
-          <div className={`${active ? "flex" : "hidden md:flex"} min-h-0 flex-col rounded-2xl border border-white/10 bg-white/[0.02]`}>
+          <div className={`${active ? "flex" : "hidden md:flex"} glass min-h-0 flex-col`}>
             {active ? (
               tab === "decision" ? <CommentPane key={active} threadId={active} onBack={() => setActive(null)} />
                 : <ChatPane key={active} threadId={active} onBack={() => setActive(null)} onChanged={loadGrouped} />
@@ -91,15 +93,18 @@ function ThreadList({ threads, active, tab, onSelect, onCreated }: { threads: Th
     if (r.ok) onCreated((await r.json()).thread.id); else toast.error("Could not create");
   }
   return (
-    <div className={`${active ? "hidden md:flex" : "flex"} min-h-0 flex-col rounded-2xl border border-white/10 bg-white/[0.02]`}>
+    <div className={`${active ? "hidden md:flex" : "flex"} glass min-h-0 flex-col`}>
       {tab !== "decision" && (
-        <button onClick={create} className="m-2 inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/10 py-1.5 text-xs text-white/60 hover:bg-white/5"><Plus className="size-3.5" /> New {tab === "team" ? "chat" : "thread"}</button>
+        <button onClick={create} className="glass-card glass-hover m-2 inline-flex min-h-[44px] items-center justify-center gap-1.5 text-xs text-white/60 hover:text-white/90"><Plus className="size-3.5" /> New {tab === "team" ? "chat" : "thread"}</button>
       )}
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {threads.length === 0 ? <p className="p-3 text-xs text-white/30">No conversations yet.</p> : threads.map((t) => (
-          <button key={t.id} onClick={() => onSelect(t.id)} className={`mb-1 w-full rounded-lg border px-2.5 py-2 text-left ${active === t.id ? "border-emerald-500/40 bg-emerald-500/[0.06]" : "border-transparent hover:bg-white/5"}`}>
+          <button key={t.id} onClick={() => onSelect(t.id)} className={`mb-1 w-full rounded-lg border px-2.5 py-2.5 text-left transition-colors ${active === t.id ? "border-emerald-500/40 bg-emerald-500/[0.06]" : "border-transparent hover:border-white/[0.07] hover:bg-white/5"}`}>
             <p className="truncate text-sm text-white/85">{t.title ?? "(untitled)"}</p>
-            <p className="truncate text-[11px] text-white/35">{t.last_type ? `[${t.last_type}] ` : ""}{t.last_message ?? "no messages"}</p>
+            <p className="truncate text-[11px] text-white/35">
+              {t.last_type && <span className="mr-1 rounded-md border border-white/[0.07] bg-white/[0.05] px-1 py-px text-[10px] uppercase text-white/40">{t.last_type}</span>}
+              {t.last_message ?? "no messages"}
+            </p>
           </button>
         ))}
       </div>
@@ -159,15 +164,17 @@ function ChatPane({ threadId, onBack, onChanged }: { threadId: string; onBack: (
         {msgs.length === 0 && <p className="pt-6 text-center text-xs text-white/30">Talk to the Communication / Manager agent.</p>}
         {msgs.map((m, i) => (
           <div key={i} className={`flex gap-2 ${m.role === "user" ? "justify-end" : ""}`}>
-            {m.role !== "user" && <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-white/5 text-emerald-300">{m.role === "tool" ? <Wrench className="size-3" /> : <Bot className="size-3.5" />}</span>}
-            <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${m.role === "user" ? "bg-emerald-500/15 text-white" : "bg-white/[0.04] text-white/85"}`}>{m.content || (m.pending && <Loader2 className="size-3.5 animate-spin" />)}</div>
-            {m.role === "user" && <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-white/5 text-white/60"><User className="size-3.5" /></span>}
+            {m.role !== "user" && <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-white/[0.07] bg-white/5 text-emerald-300">{m.role === "tool" ? <Wrench className="size-3" /> : <Bot className="size-3.5" />}</span>}
+            <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${m.role === "user" ? "border border-emerald-500/20 bg-emerald-500/15 text-white" : "border border-white/[0.06] bg-white/[0.04] text-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"}`}>{m.content || (m.pending && <Loader2 className="size-3.5 animate-spin" />)}</div>
+            {m.role === "user" && <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-white/[0.07] bg-white/5 text-white/60"><User className="size-3.5" /></span>}
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-2 border-t border-white/10 p-2">
-        <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Message…" className="h-9 flex-1 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500/40" />
-        <button onClick={send} disabled={streaming || !input.trim()} className="grid size-9 place-items-center rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-40">{streaming ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}</button>
+      <div className="border-t border-white/10 p-2">
+        <div className="glass-card flex items-center gap-2 p-1.5 transition-colors focus-within:border-emerald-500/40">
+          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Message…" className="h-9 min-w-0 flex-1 bg-transparent px-2 text-sm text-white placeholder:text-white/30 outline-none" />
+          <button onClick={send} disabled={streaming || !input.trim()} aria-label="Send" className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-500 text-black shadow-[0_0_14px_rgba(16,185,129,0.2)] hover:bg-emerald-400 disabled:opacity-40">{streaming ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}</button>
+        </div>
       </div>
     </>
   );
@@ -231,12 +238,14 @@ function CommentPane({ threadId, onBack }: { threadId: string; onBack: () => voi
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         {msgs.length === 0 ? <p className="pt-6 text-center text-xs text-white/30">Discuss this decision. It stays linked to the Decision Inbox.</p> : msgs.map((m) => (
-          <div key={m.id} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white/80"><span className="mr-1 text-[10px] uppercase text-white/30">{m.type ?? m.role}</span>{m.content}</div>
+          <div key={m.id} className="glass-card rounded-lg px-3 py-2 text-sm text-white/80"><span className="mr-1.5 rounded-md border border-indigo-500/20 bg-indigo-500/10 px-1 py-px text-[10px] uppercase text-indigo-300/80">{m.type ?? m.role}</span>{m.content}</div>
         ))}
       </div>
-      <div className="flex items-center gap-2 border-t border-white/10 p-2">
-        <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Add a comment…" className="h-9 flex-1 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-emerald-500/40" />
-        <button onClick={send} disabled={!input.trim()} className="grid size-9 place-items-center rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-40"><Send className="size-4" /></button>
+      <div className="border-t border-white/10 p-2">
+        <div className="glass-card flex items-center gap-2 p-1.5 transition-colors focus-within:border-emerald-500/40">
+          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Add a comment…" className="h-9 min-w-0 flex-1 bg-transparent px-2 text-sm text-white placeholder:text-white/30 outline-none" />
+          <button onClick={send} disabled={!input.trim()} aria-label="Send" className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-500 text-black shadow-[0_0_14px_rgba(16,185,129,0.2)] hover:bg-emerald-400 disabled:opacity-40"><Send className="size-4" /></button>
+        </div>
       </div>
     </>
   );
@@ -249,16 +258,16 @@ function AgentLogs() {
   const [agent, setAgent] = useState("");
   useEffect(() => { fetch(`/api/conversations/logs${agent ? `?agent_id=${agent}` : ""}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => setLogs(j?.logs ?? [])).catch(() => {}); }, [agent]);
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.02] p-3">
-      <div className="mb-2 flex items-center gap-2"><ScrollText className="size-4 text-white/40" /><span className="text-xs text-white/50">Technical timeline (read-only) · less prominent by design</span>
-        <input value={agent} onChange={(e) => setAgent(e.target.value)} placeholder="filter agent id" className="ml-auto h-7 w-36 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white outline-none" /></div>
+    <div className="glass-inset min-h-0 flex-1 overflow-y-auto p-3">
+      <div className="mb-2 flex items-center gap-2"><ScrollText className="size-3.5 text-white/30" /><span className="text-[11px] text-white/40">Technical timeline (read-only) · less prominent by design</span>
+        <input value={agent} onChange={(e) => setAgent(e.target.value)} placeholder="filter agent id" className="ml-auto h-8 w-36 rounded-lg border border-white/[0.07] bg-white/[0.04] px-2 text-xs text-white/70 outline-none focus:border-white/20" /></div>
       {logs.length === 0 ? <p className="text-xs text-white/30">No logs.</p> : (
         <ul className="space-y-1">{logs.map((l) => (
-          <li key={l.id} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-[11px]">
-            <span className="rounded bg-white/5 px-1 uppercase text-white/40">{l.type}</span>
-            <span className="text-white/60">{l.from_agent_id ?? "system"} → {l.to_agent_id ?? l.to_role ?? "—"}</span>
-            <span className="truncate text-white/45">{String(l.payload?.note ?? "")}</span>
-            <span className={`ml-auto shrink-0 ${l.status === "done" ? "text-emerald-300/70" : l.status === "rejected" ? "text-red-300/70" : "text-white/30"}`}>{l.status}</span>
+          <li key={l.id} className="flex items-center gap-2 rounded-lg border border-white/[0.05] bg-white/[0.02] px-2.5 py-1.5 text-[10px]">
+            <span className="rounded bg-white/5 px-1 uppercase text-white/35">{l.type}</span>
+            <span className="text-white/50">{l.from_agent_id ?? "system"} → {l.to_agent_id ?? l.to_role ?? "—"}</span>
+            <span className="truncate text-white/35">{String(l.payload?.note ?? "")}</span>
+            <span className={`ml-auto shrink-0 ${l.status === "done" ? "text-emerald-300/60" : l.status === "rejected" ? "text-red-300/60" : "text-white/25"}`}>{l.status}</span>
           </li>
         ))}</ul>
       )}
@@ -274,23 +283,35 @@ function Summaries() {
   const load = useCallback(async () => { const r = await fetch("/api/conversations/summaries", { cache: "no-store" }); if (r.ok) setItems((await r.json()).summaries ?? []); }, []);
   useEffect(() => { load(); }, [load]);
   async function gen(type: string) { setBusy(true); const r = await fetch("/api/conversations/summaries", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type }) }); setBusy(false); if (r.ok) { toast.success("Generated"); load(); } else toast.error("Failed"); }
+  // visual grouping per day (newest first) — same data, just organised
+  const byDay = items.reduce<[string, Summary[]][]>((acc, s) => {
+    const day = new Date(s.created_at).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+    const last = acc[acc.length - 1];
+    if (last && last[0] === day) last[1].push(s); else acc.push([day, [s]]);
+    return acc;
+  }, []);
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+    <div className="glass min-h-0 flex-1 overflow-y-auto p-3">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <button disabled={busy} onClick={() => gen("daily_standup")} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/70 hover:bg-white/5 disabled:opacity-50">Generate standup</button>
-        <button disabled={busy} onClick={() => gen("end_of_day")} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/70 hover:bg-white/5 disabled:opacity-50">End-of-day</button>
+        <button disabled={busy} onClick={() => gen("daily_standup")} className="glass-card glass-hover min-h-[44px] px-3 text-xs text-white/70 hover:text-white/90 disabled:opacity-50">Generate standup</button>
+        <button disabled={busy} onClick={() => gen("end_of_day")} className="glass-card glass-hover min-h-[44px] px-3 text-xs text-white/70 hover:text-white/90 disabled:opacity-50">End-of-day</button>
         {busy && <Loader2 className="size-4 animate-spin text-white/40" />}
       </div>
       {items.length === 0 ? <p className="text-xs text-white/30">No summaries yet — generate one above.</p> : (
-        <div className="space-y-2">{items.map((s) => (
-          <details key={s.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            <summary className="cursor-pointer text-sm font-medium text-white/85">{s.title} <span className="text-[10px] uppercase text-white/35">{s.type}</span></summary>
-            <div className="mt-2 space-y-1 text-[11px] text-white/60">
-              {Object.entries(s.sections ?? {}).filter(([, v]) => v?.length).map(([k, v]) => (
-                <div key={k}><span className="uppercase text-white/35">{k}:</span> {v.map((x) => x.text).join(" · ")}</div>
-              ))}
-            </div>
-          </details>
+        <div className="space-y-4">{byDay.map(([day, list]) => (
+          <div key={day}>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">{day}</p>
+            <div className="space-y-2">{list.map((s) => (
+              <details key={s.id} className="glass-card p-3">
+                <summary className="cursor-pointer text-sm font-medium text-white/85">{s.title} <span className="ml-1 rounded-md border border-white/[0.07] bg-white/[0.05] px-1 py-px text-[10px] uppercase text-white/40">{s.type}</span></summary>
+                <div className="mt-2 space-y-1 text-[11px] text-white/60">
+                  {Object.entries(s.sections ?? {}).filter(([, v]) => v?.length).map(([k, v]) => (
+                    <div key={k}><span className="uppercase text-white/35">{k}:</span> {v.map((x) => x.text).join(" · ")}</div>
+                  ))}
+                </div>
+              </details>
+            ))}</div>
+          </div>
         ))}</div>
       )}
     </div>
@@ -299,10 +320,10 @@ function Summaries() {
 
 function SearchResults({ results, onOpen }: { results: Thread[]; onOpen: (t: Thread) => void }) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.02] p-2">
+    <div className="glass min-h-0 flex-1 overflow-y-auto p-2">
       {results.length === 0 ? <p className="p-3 text-xs text-white/30">No matches.</p> : results.map((t) => (
-        <button key={t.id} onClick={() => onOpen(t)} className="mb-1 w-full rounded-lg px-3 py-2 text-left hover:bg-white/5">
-          <p className="truncate text-sm text-white/85">{t.title ?? "(untitled)"} <span className="text-[10px] uppercase text-white/30">{t.group}</span></p>
+        <button key={t.id} onClick={() => onOpen(t)} className="mb-1 w-full rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-white/5">
+          <p className="truncate text-sm text-white/85">{t.title ?? "(untitled)"} <span className="ml-1 rounded-md border border-white/[0.07] bg-white/[0.05] px-1 py-px text-[10px] uppercase text-white/40">{t.group}</span></p>
           <p className="truncate text-[11px] text-white/40">{t.last_message ?? ""}</p>
         </button>
       ))}

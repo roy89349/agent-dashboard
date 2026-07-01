@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ChevronRight, XCircle, Layers } from "lucide-react";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/glass";
 import { WorkflowStatusBadge } from "./workflow-badges";
 import { WorkflowStepper } from "./workflow-stepper";
 import type { WorkflowDetail } from "@/lib/workflows";
@@ -73,7 +75,7 @@ export function WorkflowDetailDrawer({
               </div>
               <p className="text-[15px] font-medium leading-snug text-white">{wf.title}</p>
 
-              <div className="rounded-xl border border-white/10 bg-black/20 px-3.5">
+              <div className="glass-inset px-3.5">
                 {wf.work_item_id && <Row label="Work item"><a href="/work-items" className="inline-flex items-center gap-1 text-emerald-300 hover:text-emerald-200"><Layers className="size-3" /> linked</a></Row>}
                 {wf.team_id && <Row label="Team">{teamName(wf.team_id)}</Row>}
                 <Row label="Created">{new Date(wf.created_at).toLocaleString()}{wf.created_by ? ` · ${wf.created_by}` : ""}</Row>
@@ -83,20 +85,25 @@ export function WorkflowDetailDrawer({
               {!terminal && (
                 <div className="flex flex-wrap gap-1.5">
                   {wf.status !== "waiting_user" && (
-                    <button disabled={busy} onClick={advance} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/70 hover:bg-white/5 disabled:opacity-50"><ChevronRight className="size-3.5" /> Advance</button>
+                    <Button variant="outline" size="sm" className="h-11 gap-1 sm:h-8" disabled={busy} onClick={advance}><ChevronRight className="size-3.5" /> Advance</Button>
                   )}
-                  <button disabled={busy} onClick={cancel} className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 px-2.5 py-1.5 text-xs text-rose-300 hover:bg-rose-500/10 disabled:opacity-50"><XCircle className="size-3.5" /> Cancel workflow</button>
+                  <Button variant="outline" size="sm" className="h-11 gap-1 border-rose-500/30 text-rose-300 hover:bg-rose-500/10 hover:text-rose-200 sm:h-8" disabled={busy} onClick={cancel}><XCircle className="size-3.5" /> Cancel workflow</Button>
                 </div>
               )}
 
               {/* the visual pipeline */}
-              <WorkflowStepper steps={detail!.steps} currentStepId={wf.current_step_id} terminal={terminal} agentName={agentName} onOp={runOp} busy={busy} />
+              <div>
+                <SectionLabel className="mb-2">Pipeline</SectionLabel>
+                <div className="glass-inset p-3.5">
+                  <WorkflowStepper steps={detail!.steps} currentStepId={wf.current_step_id} terminal={terminal} agentName={agentName} onOp={runOp} busy={busy} />
+                </div>
+              </div>
 
               {/* event log */}
               {detail!.events.length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs font-medium text-white/50">Activity</p>
-                  <ol className="space-y-1">
+                  <SectionLabel className="mb-2">Activity</SectionLabel>
+                  <ol className="glass-inset max-h-56 space-y-1.5 overflow-y-auto p-3">
                     {detail!.events.map((e) => (
                       <li key={e.id} className="flex items-start gap-2 text-[11px] text-white/50">
                         <span className="shrink-0 tabular-nums text-white/30">{new Date(e.created_at).toLocaleTimeString()}</span>

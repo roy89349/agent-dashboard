@@ -48,7 +48,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-black/65 backdrop-blur-sm" />
           <DialogPrimitive.Content
-            className="fixed left-1/2 top-1/2 z-[80] w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-[#0d1322] p-5 text-white shadow-2xl shadow-black/50 [animation:mc-fade-in_0.18s_ease-out]"
+            className="glass-overlay fixed left-1/2 top-1/2 z-[80] w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl p-5 text-white [animation:mc-fade-in_0.18s_ease-out]"
             onKeyDown={(e) => {
               if (e.key === "Enter" && challengeOk) {
                 e.preventDefault();

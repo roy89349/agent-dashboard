@@ -21,7 +21,7 @@ export function EmptyState({
         ? "bg-white/5 text-white/40"
         : "bg-emerald-500/10 text-emerald-300";
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-14 text-center">
+    <div className="glass-inset flex flex-col items-center justify-center border-dashed px-4 py-14 text-center">
       <div className={`mb-3 grid size-12 place-items-center rounded-2xl ${chip}`}>
         <Icon className="size-6" />
       </div>

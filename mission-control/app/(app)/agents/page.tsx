@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Users, Bot, ShieldCheck, Wrench, Tag, Eye, RefreshCw, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/glass";
+import { AgentAvatar } from "@/components/fleet/agent-meta";
 
 type Agent = {
   id: string;
@@ -43,28 +46,26 @@ export default function AgentsPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300">
-          <Users className="size-[18px]" />
-        </div>
-        <div>
-          <h2 className="text-base font-semibold text-white">Agents</h2>
-          <p className="text-xs text-white/40">
-            {loading ? "Loading the roster…" : `${enabled}/${list.length} enabled · config-driven team`}
-          </p>
-        </div>
-        <button
-          onClick={load}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5"
-        >
-          <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
-      </div>
+      <PageHeader
+        className="mb-5"
+        title={
+          <span className="inline-flex items-center gap-2.5">
+            <span className="glass-card grid size-9 place-items-center rounded-xl text-emerald-300"><Users className="size-[18px]" /></span>
+            Agents
+          </span>
+        }
+        subtitle={loading ? "Loading the roster…" : `${enabled}/${list.length} enabled · config-driven team — tap an agent for memory, performance and feedback`}
+        actions={
+          <Button variant="outline" size="sm" className="h-10" onClick={load}>
+            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+        }
+      />
 
       {loading && !agents ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-44 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
+            <div key={i} className="glass-card h-44 animate-pulse" />
           ))}
         </div>
       ) : list.length === 0 ? (
@@ -75,20 +76,23 @@ export default function AgentsPage() {
             <Link
               key={a.id}
               href={`/agents/${a.id}`}
-              className={`flex flex-col rounded-2xl border p-4 transition-colors hover:border-white/25 ${
-                a.enabled ? "border-white/10 bg-white/[0.03]" : "border-white/5 bg-white/[0.015] opacity-60"
-              }`}
+              className={`glass-card glass-hover flex flex-col p-4 ${a.enabled ? "" : "opacity-60"}`}
             >
-              <div className="flex items-center gap-2">
-                <span className={`size-2 shrink-0 rounded-full ${a.enabled ? "bg-emerald-400" : "bg-white/25"}`} />
-                <span className="truncate font-semibold capitalize text-white">{a.role}</span>
+              <div className="flex items-center gap-2.5">
+                <div className="relative shrink-0">
+                  <AgentAvatar name={a.name} role={a.role} className="size-9 text-xs" />
+                  <span className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-[#0d1322] ${a.enabled ? "bg-emerald-400" : "bg-white/25"}`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold capitalize text-white">{a.role}</p>
+                  <p className="truncate text-xs text-white/40">{a.name}</p>
+                </div>
                 {a.blocking && (
-                  <Badge tone="rose" className="ml-auto">
+                  <Badge tone="rose" className="ml-auto shrink-0">
                     <ShieldCheck className="size-3" /> blocking
                   </Badge>
                 )}
               </div>
-              <p className="mt-0.5 truncate text-xs text-white/40">{a.name}</p>
 
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <Badge tone="indigo">

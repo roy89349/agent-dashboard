@@ -108,8 +108,8 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
 
   return (
     <article
-      className={`rounded-xl border p-3 ${
-        failed ? "border-red-500/40 bg-red-500/[0.06]" : "border-white/10 bg-white/[0.03]"
+      className={`glass-card glass-hover p-3 ${
+        failed ? "border-red-500/40 !bg-red-500/[0.06]" : ""
       }`}
     >
       <div className="flex items-start justify-between gap-2">

@@ -26,6 +26,7 @@ import {
   Trophy,
   Wand2,
   ScrollText,
+  type LucideIcon,
 } from "lucide-react";
 import { CommandPalette } from "./command-palette";
 import { MobileNav } from "./mobile-nav";
@@ -33,25 +34,52 @@ import { NewTaskDialog } from "@/components/new-task-dialog";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import type { FleetStatus } from "@/lib/types";
 
-const NAV = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/work-items", label: "Work Items", icon: Layers },
-  { href: "/workflows", label: "Workflows", icon: GitBranch },
-  { href: "/manager", label: "Manager", icon: Split },
-  { href: "/approvals", label: "Decisions", icon: Inbox },
-  { href: "/war-room", label: "War Room", icon: Radio },
-  { href: "/updates", label: "Updates", icon: Megaphone },
-  { href: "/agents", label: "Agents", icon: Users },
-  { href: "/build-team", label: "Build Team", icon: Wand2 },
-  { href: "/team-composer", label: "Team Composer", icon: Network },
-  { href: "/skills", label: "Skills", icon: Boxes },
-  { href: "/conversations", label: "Conversations", icon: MessagesSquare },
-  { href: "/kennis", label: "Knowledge", icon: BookOpen },
-  { href: "/kpis", label: "KPIs", icon: BarChart3 },
-  { href: "/costs", label: "Costs", icon: Gauge },
-  { href: "/agent-performance", label: "Performance", icon: Trophy },
-  { href: "/audit", label: "Audit Log", icon: ScrollText },
-  { href: "/config", label: "Config", icon: Settings },
+// Sidebar navigation, visually grouped into sections. Same routes as before — grouping only.
+const NAV_GROUPS: { section: string; items: { href: string; label: string; icon: LucideIcon }[] }[] = [
+  {
+    section: "Command",
+    items: [
+      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/war-room", label: "War Room", icon: Radio },
+      { href: "/approvals", label: "Decisions", icon: Inbox },
+      { href: "/work-items", label: "Work Items", icon: Layers },
+      { href: "/workflows", label: "Workflows", icon: GitBranch },
+    ],
+  },
+  {
+    section: "Team",
+    items: [
+      { href: "/manager", label: "Manager", icon: Split },
+      { href: "/agents", label: "Agents", icon: Users },
+      { href: "/build-team", label: "Build Team", icon: Wand2 },
+      { href: "/team-composer", label: "Team Composer", icon: Network },
+      { href: "/skills", label: "Skills", icon: Boxes },
+    ],
+  },
+  {
+    section: "Intelligence",
+    items: [
+      { href: "/kennis", label: "Knowledge", icon: BookOpen },
+      { href: "/kpis", label: "KPIs", icon: BarChart3 },
+      { href: "/costs", label: "Costs", icon: Gauge },
+      { href: "/agent-performance", label: "Performance", icon: Trophy },
+    ],
+  },
+  {
+    section: "Communication",
+    items: [
+      { href: "/updates", label: "Updates", icon: Megaphone },
+      { href: "/conversations", label: "Conversations", icon: MessagesSquare },
+      { href: "/config#phone", label: "Phone", icon: Smartphone },
+    ],
+  },
+  {
+    section: "System",
+    items: [
+      { href: "/audit", label: "Audit Log", icon: ScrollText },
+      { href: "/config", label: "Config", icon: Settings },
+    ],
+  },
 ];
 
 const TITLES: Record<string, string> = {
@@ -157,40 +185,53 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <ConfirmProvider>
       <div className="flex min-h-dvh">
         {/* ── desktop sidebar (unchanged behaviour) ── */}
-        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-white/10 bg-black/20 px-3 py-4 md:flex">
-          <div className="flex items-center gap-2 px-2 pb-5">
-            <div className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 to-indigo-500 text-black">
+        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-white/[0.07] bg-black/25 px-3 py-4 backdrop-blur-xl md:flex">
+          <div className="flex items-center gap-2 px-2 pb-4">
+            <div className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 to-indigo-500 text-black shadow-[0_0_14px_rgba(16,185,129,0.35)]">
               <Radio className="size-4" />
             </div>
             <div className="leading-tight">
-              <p className="text-sm font-semibold">Mission Control</p>
-              <p className="text-[10px] text-white/40">agent fleet</p>
+              <p className="text-sm font-semibold tracking-tight">Mission Control</p>
+              <p className="text-[10px] text-white/40">agent operating system</p>
             </div>
           </div>
 
-          <nav className="flex flex-1 flex-col gap-0.5">
-            {NAV.map((n) => {
-              const active = n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
-              const Icon = n.icon;
-              return (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  className={`group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${
-                    active ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white/90"
-                  }`}
-                >
-                  {active && <span className="absolute left-0 h-5 w-0.5 rounded-r bg-emerald-400" />}
-                  <Icon className="size-4" />
-                  {n.label}
-                  {n.href === "/approvals" && pending > 0 && (
-                    <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-amber-500/90 px-1.5 text-[10px] font-semibold tabular-nums text-black">
-                      {pending}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+          <nav className="flex flex-1 flex-col gap-3 overflow-y-auto pb-2">
+            {NAV_GROUPS.map((g) => (
+              <div key={g.section}>
+                <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">
+                  {g.section}
+                </p>
+                <div className="flex flex-col gap-px">
+                  {g.items.map((n) => {
+                    const base = n.href.split("#")[0];
+                    const active =
+                      !n.href.includes("#") && (n.href === "/" ? pathname === "/" : pathname.startsWith(base));
+                    const Icon = n.icon;
+                    return (
+                      <Link
+                        key={n.href}
+                        href={n.href}
+                        className={`group relative flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] transition-all duration-150 ${
+                          active
+                            ? "border border-white/10 bg-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_14px_rgba(16,185,129,0.08)]"
+                            : "border border-transparent text-white/55 hover:bg-white/[0.04] hover:text-white/90"
+                        }`}
+                      >
+                        {active && <span className="absolute left-0 h-4 w-0.5 rounded-r bg-emerald-400" />}
+                        <Icon className={`size-4 ${active ? "text-emerald-300" : "text-white/40 group-hover:text-white/70"}`} />
+                        {n.label}
+                        {n.href === "/approvals" && pending > 0 && (
+                          <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-amber-500/90 px-1.5 text-[10px] font-semibold tabular-nums text-black">
+                            {pending}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
 
           <button
@@ -214,7 +255,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* ── main ── */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-white/10 bg-[#080b14]/80 px-3 backdrop-blur sm:gap-3 sm:px-4">
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-white/[0.07] bg-[#070a13]/75 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl sm:gap-3 sm:px-4">
             {/* mobile fleet status dot (desktop has it in the sidebar) */}
             <span className={`size-2 shrink-0 rounded-full md:hidden ${online ? "bg-emerald-400 animate-pulse" : "bg-red-500"}`} />
             <h1 className="truncate text-sm font-semibold">{title}</h1>

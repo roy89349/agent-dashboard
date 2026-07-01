@@ -44,7 +44,7 @@ export function RecommendDialog({
         <p className="mb-3 text-xs text-white/45">Pick a project type — a starting team is composed from your enabled agents (config-driven rules). You can edit everything before saving.</p>
         <div className="grid grid-cols-2 gap-2">
           {PROJECT_TYPES.map((pt) => (
-            <button key={pt} onClick={() => pick(pt)} className={`rounded-xl border p-3 text-left text-sm transition-colors ${picked === pt ? "border-emerald-400/50 bg-emerald-500/10 text-white" : "border-white/10 bg-white/[0.03] text-white/70 hover:border-white/25"}`}>
+            <button key={pt} onClick={() => pick(pt)} className={`glass-card min-h-[44px] cursor-pointer p-3 text-left text-sm ${picked === pt ? "glow-ok border-emerald-400/50 bg-emerald-500/10 text-white" : "glass-hover text-white/70"}`}>
               {LABELS[pt]}
             </button>
           ))}
@@ -52,7 +52,7 @@ export function RecommendDialog({
 
         {busy && <p className="mt-4 text-sm text-white/40">Composing…</p>}
         {preview && (
-          <div className="mt-4 space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="glass-inset mt-4 space-y-3 p-3">
             <p className="text-sm font-semibold text-white">{preview.draftTeam.name}</p>
             <div className="flex flex-wrap gap-1">
               {(preview.draftTeam.members ?? []).map((m) => <Badge key={m} tone="slate">{m}{preview.draftTeam.lead === m ? " ★" : ""}</Badge>)}
@@ -67,7 +67,7 @@ export function RecommendDialog({
             <button
               onClick={() => { onUse(preview.draftTeam); onClose(); }}
               disabled={(preview.draftTeam.members ?? []).length === 0}
-              className="h-10 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"
+              className="h-11 w-full rounded-xl bg-emerald-500 text-sm font-semibold text-black shadow-[0_0_18px_rgba(16,185,129,0.2)] transition-colors hover:bg-emerald-400 disabled:opacity-50 disabled:shadow-none"
             >
               Use this team (edit before saving)
             </button>

@@ -16,9 +16,7 @@ export function WorkItemCard({
   return (
     <article
       onClick={onClick}
-      className={`cursor-pointer rounded-2xl border p-4 transition-colors ${
-        selected ? "border-emerald-400/60 bg-emerald-500/[0.06]" : "border-white/10 bg-white/[0.03] hover:border-white/25"
-      }`}
+      className={`glass-card glass-hover cursor-pointer p-4 ${selected ? "glow-ok" : ""}`}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 text-sm font-medium leading-snug text-white/90">{item.title}</p>

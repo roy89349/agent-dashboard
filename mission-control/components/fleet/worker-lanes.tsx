@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Clock, AlertTriangle, Skull, Ban, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AgentIdentity, RiskBadge, WaitingBadge } from "@/components/fleet/agent-meta";
 import { FilterBar } from "@/components/fleet/filter-bar";
 import { slotMeta, matches, facets, groupKey, type FilterState, type GroupDim } from "@/lib/agent-view";
@@ -52,13 +53,12 @@ export function WorkerLanes() {
 
   if (!status || slots.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-12 text-center">
-        <Bot className="mx-auto size-8 text-white/20" />
-        <p className="mt-3 text-sm text-white/40">
-          {!loaded ? "Loading…" : online ? "No active workers" : "Fleet offline — start the supervisor"}
-        </p>
-        {online && <p className="mt-1 text-xs text-white/25">As soon as the fleet claims a task it appears here live.</p>}
-      </div>
+      <EmptyState
+        icon={Bot}
+        tone="slate"
+        title={!loaded ? "Loading…" : online ? "No active workers" : "Fleet offline — start the supervisor"}
+        hint={online ? "As soon as the fleet claims a task it appears here live." : undefined}
+      />
     );
   }
 
@@ -73,7 +73,7 @@ export function WorkerLanes() {
         groupOptions={GROUP_OPTIONS}
       />
       {filtered.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] py-10 text-center text-sm text-white/40">
+        <p className="glass-inset border-dashed py-10 text-center text-sm text-white/40">
           No workers match this filter.
         </p>
       ) : (
@@ -105,8 +105,8 @@ function WorkerLane({ slot, onCmd }: { slot: SlotStatus; onCmd: (cmd: string, is
   const waiting = !!slot.awaiting_approval;
   return (
     <article
-      className={`rounded-2xl border p-3 ${
-        waiting ? "border-amber-500/50 bg-amber-500/[0.05]" : slot.stale ? "border-amber-500/50 bg-amber-500/[0.04]" : "border-white/10 bg-white/[0.03]"
+      className={`glass-card p-3 ${
+        waiting ? "glow-warn border-amber-500/40 bg-amber-500/[0.05]" : slot.stale ? "border-amber-500/40 bg-amber-500/[0.04]" : ""
       }`}
     >
       {/* identity: agent · role · team */}
@@ -207,7 +207,7 @@ function LogTail({ issue }: { issue: number }) {
   }, [issue]);
 
   return (
-    <pre ref={boxRef} className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/50 p-2.5 text-[11px] leading-snug text-emerald-300/90">
+    <pre ref={boxRef} className="glass-inset mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg p-2.5 font-mono text-[11px] leading-snug text-emerald-300/90">
       {text || "waiting for output…"}
     </pre>
   );

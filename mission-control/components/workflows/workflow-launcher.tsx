@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { GitBranch, Play, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { WorkflowTemplate } from "@/lib/workflows";
 
 export function WorkflowLauncher({ workItemId, title }: { workItemId: string; title?: string }) {
@@ -28,21 +29,21 @@ export function WorkflowLauncher({ workItemId, title }: { workItemId: string; ti
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-      <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/50"><GitBranch className="size-3.5" /> Run a workflow for this task</p>
+    <div className="glass-inset p-3.5">
+      <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35"><GitBranch className="size-3.5" /> Run a workflow for this task</p>
       {startedId ? (
         <Link href="/workflows" className="inline-flex items-center gap-1 text-sm text-emerald-300 hover:text-emerald-200">
           Workflow started — open Workflows <ArrowRight className="size-3.5" />
         </Link>
       ) : (
         <div className="flex items-center gap-2">
-          <select value={tpl} onChange={(e) => setTpl(e.target.value)} className="h-9 flex-1 rounded-lg border border-white/10 bg-white/5 px-2 text-sm text-white outline-none focus:border-emerald-500/40">
+          <select value={tpl} onChange={(e) => setTpl(e.target.value)} className="h-11 min-w-0 flex-1 rounded-lg border border-white/10 bg-white/5 px-2 text-sm text-white outline-none focus:border-emerald-500/40">
             <option value="" className="bg-[#0d1322]">Choose a template…</option>
             {templates.map((t) => <option key={t.id} value={t.id} className="bg-[#0d1322]">{t.name}</option>)}
           </select>
-          <button disabled={!tpl || busy} onClick={start} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50">
+          <Button variant="accent" className="h-11 px-3 font-semibold" disabled={!tpl || busy} onClick={start}>
             <Play className="size-4" /> Start
-          </button>
+          </Button>
         </div>
       )}
     </div>

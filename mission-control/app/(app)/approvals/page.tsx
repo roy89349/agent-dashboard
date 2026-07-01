@@ -9,6 +9,8 @@ import {
   Check, X, PauseCircle, UserCog, ExternalLink, RefreshCw, Smartphone, History,
 } from "lucide-react";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { PageHeader, SectionLabel } from "@/components/ui/glass";
+import { EmptyState as GlassEmptyState } from "@/components/ui/empty-state";
 import {
   approvalView, type ApprovalView, type PublicApproval, type Tone, type DashboardAction,
 } from "@/lib/approvals-view";
@@ -182,23 +184,32 @@ export default function ApprovalsPage() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6">
       {/* ── header + tabs ── */}
-      <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-emerald-300">
-          <Inbox className="size-4.5" />
-        </div>
-        <div>
-          <h2 className="text-base font-semibold text-white">Decision Inbox</h2>
-          <p className="text-xs text-white/40">Approvals from your agent fleet — phone &amp; dashboard share one store.</p>
-        </div>
-        <button
-          onClick={load}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/50 hover:bg-white/5"
-        >
-          <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
-      </div>
+      <PageHeader
+        className="mb-4"
+        title={
+          <span className="flex items-center gap-3">
+            <span className="glass-card grid size-9 place-items-center text-emerald-300">
+              <Inbox className="size-4.5" />
+            </span>
+            Decision Inbox
+          </span>
+        }
+        subtitle={
+          pending.length > 0
+            ? `${pending.length} decision${pending.length === 1 ? "" : "s"} waiting for you — phone & dashboard share one store.`
+            : "Nothing waiting — approvals from your fleet land here and on your phone."
+        }
+        actions={
+          <button
+            onClick={load}
+            className="glass-card glass-hover inline-flex h-11 items-center gap-1.5 px-3.5 text-xs text-white/60 hover:text-white/90"
+          >
+            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        }
+      />
 
-      <div className="mb-4 inline-flex rounded-xl border border-white/10 bg-black/20 p-1 text-sm">
+      <div className="glass-card mb-4 inline-flex p-1 text-sm">
         {(["pending", "history"] as const).map((t) => (
           <button
             key={t}
@@ -220,7 +231,7 @@ export default function ApprovalsPage() {
       {loading && list.length === 0 ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-28 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
+            <div key={i} className="glass-card h-28 animate-pulse" />
           ))}
         </div>
       ) : shown.length === 0 ? (
@@ -270,7 +281,7 @@ export default function ApprovalsPage() {
       {/* ── toast ── */}
       {toast && (
         <div className="fixed inset-x-0 bottom-5 z-[60] mx-auto w-fit max-w-[90vw] px-4">
-          <div className={`rounded-xl border px-4 py-2.5 text-sm shadow-lg ${toast.ok ? TONE.emerald : TONE.red}`}>
+          <div className={`glass-overlay rounded-xl px-4 py-2.5 text-sm ${toast.ok ? "border-emerald-500/30 text-emerald-300" : "border-red-500/30 text-red-300"}`}>
             {toast.msg}
           </div>
         </div>
@@ -281,17 +292,12 @@ export default function ApprovalsPage() {
 
 function EmptyState({ tab }: { tab: "pending" | "history" }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] py-16 text-center">
-      <div className="mb-3 grid size-12 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-300">
-        <ShieldCheck className="size-6" />
-      </div>
-      <p className="text-sm font-medium text-white/80">
-        {tab === "pending" ? "No decisions waiting" : "No past decisions yet"}
-      </p>
-      <p className="mt-1 text-xs text-white/40">
-        {tab === "pending" ? "You're all clear — agents will ping you here and on your phone." : "Approved, rejected and expired items will show up here."}
-      </p>
-    </div>
+    <GlassEmptyState
+      icon={tab === "pending" ? ShieldCheck : History}
+      tone={tab === "pending" ? "emerald" : "slate"}
+      title={tab === "pending" ? "No decisions waiting" : "No past decisions yet"}
+      hint={tab === "pending" ? "You're all clear — agents will ping you here and on your phone." : "Approved, rejected and expired items will show up here."}
+    />
   );
 }
 
@@ -301,7 +307,7 @@ function Card({
   v: ApprovalView; busy: string | null; onOpen: () => void; onApprove: () => void; onReject: () => void;
 }) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-colors hover:border-white/20">
+    <article className="glass-card glass-hover overflow-hidden">
       <button onClick={onOpen} className="block w-full p-4 text-left">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="indigo">{v.kindLabel}</Badge>
@@ -371,19 +377,24 @@ function DetailBody({
         <p className="text-[15px] font-medium leading-snug text-white">{v.summary}</p>
 
         {/* risk + advice callouts */}
-        {v.riskText && (
-          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-200/90">
-            <span className="font-semibold">Risk:</span> {v.riskText}
-          </div>
-        )}
-        {v.advice && (
-          <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-3.5 py-2.5 text-xs text-indigo-200/90">
-            <span className="font-semibold">Agent advice:</span> {v.advice}
+        {(v.riskText || v.advice) && (
+          <div className="space-y-2">
+            <SectionLabel>Why am I being asked?</SectionLabel>
+            {v.riskText && (
+              <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-200/90">
+                <span className="font-semibold">Risk:</span> {v.riskText}
+              </div>
+            )}
+            {v.advice && (
+              <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-3.5 py-2.5 text-xs text-indigo-200/90">
+                <span className="font-semibold">Agent advice:</span> {v.advice}
+              </div>
+            )}
           </div>
         )}
 
         {/* meta */}
-        <div className="rounded-xl border border-white/10 bg-black/20 px-3.5">
+        <div className="glass-inset px-3.5">
           <MetaRow label="Target" value={v.target} />
           <MetaRow label="Agent" value={v.agent ?? "—"} />
           <MetaRow label="Status" value={<Badge tone={v.statusTone}>{v.statusLabel}</Badge>} />
@@ -414,7 +425,7 @@ function DetailBody({
         {v.diffPreview && (
           <div>
             <p className="mb-1.5 text-xs font-medium text-white/50">Context (redacted)</p>
-            <pre className="max-h-64 overflow-auto rounded-xl border border-white/10 bg-black/40 p-3 text-[11px] leading-relaxed text-white/70">
+            <pre className="glass-inset max-h-64 overflow-auto p-3 font-mono text-[11px] leading-relaxed text-white/70">
               {v.diffPreview}
             </pre>
           </div>
@@ -451,7 +462,7 @@ function DetailBody({
               onChange={(e) => setReason(e.target.value)}
               rows={2}
               placeholder="e.g. needs a test first"
-              className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/90 placeholder:text-white/25 focus:border-emerald-500/40 focus:outline-none"
+              className="glass-inset w-full resize-none px-3 py-2 text-sm text-white/90 placeholder:text-white/25 focus:border-emerald-500/40 focus:outline-none"
             />
           </div>
         )}
@@ -471,7 +482,7 @@ function DetailBody({
 
       {/* sticky action bar */}
       {v.pending && (
-        <div className="sticky bottom-0 mt-auto border-t border-white/10 bg-[#0d1322]/95 p-4 backdrop-blur">
+        <div className="glass-overlay sticky bottom-0 mt-auto rounded-none border-x-0 border-b-0 p-4">
           <div className="flex gap-2">
             <ActionButton kind="approve" icon={Check} label="Approve" onClick={() => onAction("approve")} busy={busy === `${v.id}:approve`} disabled={!!busy} />
             <ActionButton kind="reject" icon={X} label="Reject" onClick={() => onAction("reject")} busy={busy === `${v.id}:reject`} disabled={!!busy} />

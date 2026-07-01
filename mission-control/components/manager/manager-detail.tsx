@@ -65,14 +65,14 @@ export function ManagerDetailDrawer({
               {plan.scope && <Section title="Scope">{plan.scope}</Section>}
 
               {/* subtasks + dependencies */}
-              <div>
-                <p className="mb-2 text-xs font-medium text-white/50">Subtasks ({plan.subtasks.length})</p>
+              <div className="glass-inset rounded-xl p-2.5">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/40">Subtasks ({plan.subtasks.length})</p>
                 <ol className="space-y-1.5">
                   {plan.subtasks.map((t, i) => {
                     const childId = plan.child_ids?.[i] ?? null;
                     const child = childId ? detail!.children.find((c) => c.id === childId) : null;
                     return (
-                      <li key={i} className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
+                      <li key={i} className="glass-card px-3 py-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="grid size-5 place-items-center rounded-full bg-white/5 text-[10px] font-semibold text-white/60">{i + 1}</span>
                           <span className="text-sm text-white/90">{t.title}</span>
@@ -96,12 +96,12 @@ export function ManagerDetailDrawer({
 
               {/* decision */}
               {mp.status === "proposed" && (
-                <div className="space-y-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3">
+                <div className="glow-warn space-y-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3">
                   {mode === "none" ? (
                     <div className="flex flex-wrap gap-1.5">
-                      <button disabled={busy} onClick={() => act("approve")} className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-50"><CheckCircle2 className="size-3.5" /> Approve plan</button>
-                      <button disabled={busy} onClick={() => setMode("adjust")} className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2.5 py-1.5 text-xs text-white/70 hover:bg-white/5 disabled:opacity-50"><PencilLine className="size-3.5" /> Adjust</button>
-                      <button disabled={busy} onClick={() => setMode("reject")} className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 px-2.5 py-1.5 text-xs text-rose-300 hover:bg-rose-500/10 disabled:opacity-50"><XCircle className="size-3.5" /> Reject</button>
+                      <button disabled={busy} onClick={() => act("approve")} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-3.5 text-xs font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/25 disabled:opacity-50"><CheckCircle2 className="size-3.5" /> Approve plan</button>
+                      <button disabled={busy} onClick={() => setMode("adjust")} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-white/15 px-3.5 text-xs text-white/70 transition-colors hover:bg-white/5 disabled:opacity-50"><PencilLine className="size-3.5" /> Adjust</button>
+                      <button disabled={busy} onClick={() => setMode("reject")} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-rose-500/30 px-3.5 text-xs text-rose-300 transition-colors hover:bg-rose-500/10 disabled:opacity-50"><XCircle className="size-3.5" /> Reject</button>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -118,7 +118,7 @@ export function ManagerDetailDrawer({
 
               {/* materialised → parent/child + workflow */}
               {mp.status === "materialized" && (
-                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-3">
+                <div className="glow-ok rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-3">
                   <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-emerald-200"><GitBranch className="size-3.5" /> {detail!.children.length} subtasks created{mp.workflow_id ? " · workflow started" : ""}</p>
                   {mp.workflow_id && <a href="/workflows" className="inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200">open the workflow <ArrowRight className="size-3" /></a>}
                 </div>

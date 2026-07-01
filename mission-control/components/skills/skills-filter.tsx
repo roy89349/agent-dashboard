@@ -45,11 +45,11 @@ export function SkillsFilter({
       )}
       <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-black/20 p-0.5 text-xs">
         {(["enabled", "archived", "all"] as const).map((s) => (
-          <button key={s} onClick={() => set({ status: s })} className={`rounded-md px-2 py-1 capitalize transition-colors ${(filter.status ?? "enabled") === s ? "bg-white/10 text-white" : "text-white/50 hover:text-white/80"}`}>{s}</button>
+          <button key={s} onClick={() => set({ status: s })} className={`rounded-md px-2 py-1.5 capitalize transition-colors ${(filter.status ?? "enabled") === s ? "bg-white/10 text-white ring-1 ring-white/15" : "text-white/50 hover:bg-white/5 hover:text-white/80"}`}>{s}</button>
         ))}
       </div>
       {active && (
-        <button onClick={() => onFilter({})} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-white/50 hover:bg-white/5 hover:text-white/80">
+        <button onClick={() => onFilter({})} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-white/50 transition-colors hover:bg-white/5 hover:text-white/80">
           <X className="size-3.5" /> Clear
         </button>
       )}

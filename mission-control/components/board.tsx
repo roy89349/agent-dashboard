@@ -67,7 +67,7 @@ export function Board({ initial }: { initial: BoardCard[] }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 px-3 pt-3">
+      <div className="glass flex flex-wrap items-center gap-2 px-3 py-2">
         <FilterBar
           facets={fac}
           filters={filters}
@@ -78,12 +78,12 @@ export function Board({ initial }: { initial: BoardCard[] }) {
         />
         <button
           onClick={refresh}
-          className="inline-flex items-center gap-1.5 rounded-md bg-white/5 px-2.5 py-1 text-xs text-white/60 hover:bg-white/10"
+          className="glass-card glass-hover inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-white/60 hover:text-white"
         >
           <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh
         </button>
       </div>
-      <div className={`grid gap-3 p-3 ${group === "status" ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"}`}>
+      <div className={`grid gap-3 pt-3 ${group === "status" ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"}`}>
         {groups.map((g) => (
           <Col key={g.key} title={g.label} cards={g.cards} onMerged={refresh} />
         ))}

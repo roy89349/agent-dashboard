@@ -19,7 +19,7 @@ export function SourceTag({ source }: { source: MetricSource }) {
 
 export function MetricCard({ m }: { m: Metric }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+    <div className="glass-card p-3">
       <div className="flex items-start justify-between gap-2">
         <p className="text-[11px] leading-tight text-white/45">{m.label}</p>
         <SourceTag source={m.source} />
@@ -50,7 +50,7 @@ export function Bars({ rows, unit }: { rows: { label: string; value: number }[];
       {rows.map((r, i) => (
         <div key={i} className="flex items-center gap-2 text-xs">
           <span className="w-32 shrink-0 truncate text-white/60" title={r.label}>{r.label}</span>
-          <span className="h-2.5 rounded bg-gradient-to-r from-emerald-500/50 to-indigo-500/40" style={{ width: `${Math.max(r.value ? 3 : 0, (r.value / max) * 100)}%` }} />
+          <span className="h-2.5 rounded-full bg-gradient-to-r from-emerald-500/60 to-indigo-500/40 shadow-[0_0_8px_rgba(16,185,129,0.15)]" style={{ width: `${Math.max(r.value ? 3 : 0, (r.value / max) * 100)}%` }} />
           <span className="ml-auto shrink-0 tabular-nums text-white/45">{r.value.toLocaleString()}{unit ?? ""}</span>
         </div>
       ))}
@@ -60,7 +60,7 @@ export function Bars({ rows, unit }: { rows: { label: string; value: number }[];
 
 export function Select({ value, onChange, opts, allLabel }: { value: string; onChange: (v: string) => void; opts: { v: string; l: string }[]; allLabel?: string }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="h-8 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white outline-none">
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="h-9 rounded-lg border border-white/10 bg-white/[0.06] px-2 text-xs text-white outline-none backdrop-blur-md focus:border-emerald-500/40">
       {allLabel && <option value="all" className="bg-[#0d1322]">{allLabel}</option>}
       {opts.map((o) => <option key={o.v} value={o.v} className="bg-[#0d1322]">{o.l}</option>)}
     </select>
