@@ -22,6 +22,9 @@ import {
   GitBranch,
   Split,
   Megaphone,
+  BarChart3,
+  Gauge,
+  Trophy,
 } from "lucide-react";
 
 type Item = {
@@ -78,7 +81,10 @@ export function CommandPalette({
       { group: "Navigation", label: "Team Composer", hint: "compose your AI team", icon: Network, run: go("/team-composer") },
       { group: "Navigation", label: "Skill Library", hint: "agent capabilities", icon: Boxes, run: go("/skills") },
       { group: "Navigation", label: "Conversations", icon: MessagesSquare, run: go("/chats") },
-      { group: "Navigation", label: "Knowledge", hint: "Obsidian vault", icon: BookOpen, run: go("/kennis") },
+      { group: "Navigation", label: "Knowledge", hint: "project brain", icon: BookOpen, run: go("/kennis") },
+      { group: "Navigation", label: "KPIs", hint: "productivity · quality · speed", icon: BarChart3, run: go("/kpis") },
+      { group: "Navigation", label: "Costs", hint: "usage estimates · budgets", icon: Gauge, run: go("/costs") },
+      { group: "Navigation", label: "Agent Performance", hint: "leaderboard", icon: Trophy, run: go("/agent-performance") },
       { group: "Navigation", label: "Config", icon: Settings, run: go("/config") },
       { group: "Fleet", label: "Start fleet", icon: Play, run: () => { setMode("running"); onOpenChange(false); } },
       { group: "Fleet", label: "Pause fleet", icon: Pause, run: () => { setMode("paused"); onOpenChange(false); } },

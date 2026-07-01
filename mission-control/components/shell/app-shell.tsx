@@ -21,6 +21,9 @@ import {
   GitBranch,
   Split,
   Megaphone,
+  BarChart3,
+  Gauge,
+  Trophy,
 } from "lucide-react";
 import { CommandPalette } from "./command-palette";
 import { MobileNav } from "./mobile-nav";
@@ -41,6 +44,9 @@ const NAV = [
   { href: "/skills", label: "Skills", icon: Boxes },
   { href: "/chats", label: "Conversations", icon: MessagesSquare },
   { href: "/kennis", label: "Knowledge", icon: BookOpen },
+  { href: "/kpis", label: "KPIs", icon: BarChart3 },
+  { href: "/costs", label: "Costs", icon: Gauge },
+  { href: "/agent-performance", label: "Performance", icon: Trophy },
   { href: "/config", label: "Config", icon: Settings },
 ];
 
@@ -58,6 +64,9 @@ const TITLES: Record<string, string> = {
   "/skills": "Skill Library",
   "/chats": "Conversations",
   "/kennis": "Knowledge",
+  "/kpis": "KPIs",
+  "/costs": "Costs & usage",
+  "/agent-performance": "Agent performance",
   "/config": "Config",
 };
 
