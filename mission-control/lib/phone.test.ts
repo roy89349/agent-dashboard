@@ -156,6 +156,50 @@ test("/budget: shows the current mode + the open emergency budget approval", asy
   assert.match(r.text, /EMERGENCY/i); // the escalation parked by the previous test
 });
 
+test("routeCommand: rec:<id>:apply|dismiss callbacks parse", () => {
+  setEnv(true);
+  const id = "11111111-2222-3333-4444-555555555555";
+  assert.deepEqual(routeCommand(telegramProvider, cb(`rec:${id}:apply`)), { kind: "recommendation_button", id, choice: "apply" });
+  assert.deepEqual(routeCommand(telegramProvider, cb(`rec:${id}:dismiss`)), { kind: "recommendation_button", id, choice: "dismiss" });
+});
+
+test("optimization loop: /optimize offers buttons; one tap applies the proven downgrade as a policy", async () => {
+  setEnv(true);
+  // seed the ledger: haiku PROVEN (6 ok runs) while sonnet burns the tokens → route.downgrade rule fires
+  const { recordUsage } = await import("./token-optimization/ledger.ts");
+  for (let i = 0; i < 6; i++)
+    recordUsage({ agent_id: "phone-rec-agent", model: "haiku", estimated_input_tokens: 1000, result_status: "ok", source: "manual" });
+  for (let i = 0; i < 3; i++)
+    recordUsage({ agent_id: "phone-rec-agent", model: "sonnet", estimated_input_tokens: 60_000, result_status: "ok", source: "manual" });
+
+  const r = await executeCommand(telegramProvider, { kind: "optimize" }, ALLOWED);
+  assert.ok(r.buttons && r.buttons.length > 0, "expected apply/dismiss buttons on /optimize");
+  const flat = r.buttons!.flat();
+  assert.ok(flat.some((b) => /^rec:[0-9a-f-]+:apply$/.test(b.data ?? "")), "expected a rec:<id>:apply button");
+
+  const { listRecommendations, getRecommendation } = await import("./token-optimization/recommendations.ts");
+  const rec = listRecommendations("open").find((x) => x.rule === "route.downgrade.phone-rec-agent");
+  assert.ok(rec, "expected the outcome-based downgrade recommendation");
+
+  // one tap = apply (through enforce + budget-manager)
+  const applied = await executeCommand(telegramProvider, { kind: "recommendation_button", id: rec!.id, choice: "apply" }, ALLOWED);
+  assert.match(applied.text, /applied/i);
+  assert.equal(getRecommendation(rec!.id)?.status, "applied");
+  const { listPolicies } = await import("./token-optimization/budget-manager.ts");
+  assert.ok(
+    listPolicies().some((p) => p.scope === "agent" && p.scope_id === "phone-rec-agent" && p.mode === "economy"),
+    "apply must write an economy agent policy via the budget-manager",
+  );
+
+  // idempotent: a re-tap never re-applies
+  const again = await executeCommand(telegramProvider, { kind: "recommendation_button", id: rec!.id, choice: "apply" }, ALLOWED);
+  assert.match(again.text, /already/i);
+
+  // unknown id → friendly error
+  const missing = await executeCommand(telegramProvider, { kind: "recommendation_button", id: "99999999-9999-9999-9999-999999999999", choice: "apply" }, ALLOWED);
+  assert.match(missing.text, /no longer exists/i);
+});
+
 test("/approve_cost with an unknown id → not found", async () => {
   setEnv(true);
   const r = await executeCommand(telegramProvider, { kind: "approve_cost", idPrefix: "ffffff99" }, ALLOWED);

@@ -8,6 +8,7 @@ import { usageSummary, efficiencyMetrics } from "./ledger.ts";
 import { cacheStats } from "./context-cache.ts";
 import { compressionStats } from "./compressor.ts";
 import { listPolicies, upsertPolicy } from "./budget-manager.ts";
+import { downgradeCandidates } from "./outcome-routing.ts";
 
 export interface Recommendation {
   id: string;
@@ -102,6 +103,15 @@ export function generateRecommendations(): Recommendation[] {
       "accuracy",
     );
   }
+  // 7. outcome-proven model downgrades (30d window — needs enough decided runs to be evidence)
+  for (const c of downgradeCandidates().slice(0, 3)) {
+    upsert(
+      `route.downgrade.${c.agent_id}`,
+      `Agent "${c.agent_id}" can run on ${c.to} — ${Math.round(c.to_ok_rate * 100)}% ok, proven`,
+      `${c.to} held ${Math.round(c.to_ok_rate * 100)}% ok over ${c.to_runs} decided runs while ${c.from} burned ~${c.from_tokens.toLocaleString()} tokens (best-known, 30d). Apply = set an economy budget policy for this agent; the outcome router already prefers the proven cheaper rung at run time, risk floors stay, and the quality guard escalates on failure.`,
+      `cheaper model, quality proven`,
+    );
+  }
   if (eff.tokens_per_failed_run != null && eff.tokens_per_ok_run != null && eff.tokens_per_failed_run > eff.tokens_per_ok_run * 1.5) {
     upsert(
       "waste.failed_heavier",
@@ -120,16 +130,25 @@ export function listRecommendations(status?: "open" | "applied" | "dismissed"): 
   return (status ? db().prepare(sql).all(status) : db().prepare(sql).all()) as unknown as Recommendation[];
 }
 
-/** Mark applied/dismissed. For policy.agent.* rules, "apply" also writes a balanced agent policy
- *  through the validated budget-manager (server-side clamped). */
-export function setRecommendationStatus(id: string, status: "applied" | "dismissed", actor: string): Recommendation | null {
-  const row = db().prepare("SELECT * FROM optimization_recommendations WHERE id = ?").get(id) as unknown as Recommendation | undefined;
+export function getRecommendation(id: string): Recommendation | null {
+  return (db().prepare("SELECT * FROM optimization_recommendations WHERE id = ?").get(id) as unknown as Recommendation) ?? null;
+}
+
+/** Mark applied/dismissed. "apply" only ever flips policy through the validated budget-manager
+ *  (server-side clamped): policy.agent.* → balanced agent policy; route.downgrade.* → economy
+ *  agent policy (the outcome router picks the proven cheaper rung at run time). */
+export function setRecommendationStatus(id: string, status: "applied" | "dismissed", actor: string, via = "dashboard"): Recommendation | null {
+  const row = getRecommendation(id);
   if (!row) return null;
   if (status === "applied" && row.rule.startsWith("policy.agent.")) {
     const agentId = row.rule.slice("policy.agent.".length);
     if (agentId) upsertPolicy({ scope: "agent", scope_id: agentId, mode: "balanced" }, actor);
   }
+  if (status === "applied" && row.rule.startsWith("route.downgrade.")) {
+    const agentId = row.rule.slice("route.downgrade.".length);
+    if (agentId) upsertPolicy({ scope: "agent", scope_id: agentId, mode: "economy" }, actor);
+  }
   db().prepare("UPDATE optimization_recommendations SET status = ?, updated_at = ? WHERE id = ?").run(status, new Date().toISOString(), id);
-  recordAudit({ actor, via: "dashboard", action: `tokens.recommendation.${status}`, detail: row.rule.slice(0, 120) });
-  return db().prepare("SELECT * FROM optimization_recommendations WHERE id = ?").get(id) as unknown as Recommendation;
+  recordAudit({ actor, via, action: `tokens.recommendation.${status}`, detail: row.rule.slice(0, 120) });
+  return getRecommendation(id);
 }

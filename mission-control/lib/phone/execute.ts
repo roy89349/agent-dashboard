@@ -23,7 +23,7 @@ import { usageSummary } from "../token-optimization/ledger.ts";
 import { getGlobalMode, setGlobalMode } from "../token-optimization/budget-manager.ts";
 import { cacheStats } from "../token-optimization/context-cache.ts";
 import { compressionStats } from "../token-optimization/compressor.ts";
-import { generateRecommendations, listRecommendations } from "../token-optimization/recommendations.ts";
+import { generateRecommendations, listRecommendations, getRecommendation, setRecommendationStatus } from "../token-optimization/recommendations.ts";
 
 // fleet.ts / github.ts / actions.ts pull in `import "server-only"` — importing them at module scope
 // would make this file un-importable under `node --test`. They are loaded lazily by the cases that
@@ -56,6 +56,7 @@ function phoneSummary(plan: CommandPlan): string {
     case "cancel": return `Cancel #${plan.issue}`;
     case "priority": return `Set #${plan.issue} priority → ${plan.level}`;
     case "set_token_mode": return `Set token optimization mode → ${plan.mode}`;
+    case "recommendation_button": return `${plan.choice === "apply" ? "Apply" : "Dismiss"} optimization recommendation`;
     default: return plan.kind;
   }
 }
@@ -199,13 +200,29 @@ function expensiveReply(): Reply {
 function optimizeReply(): Reply {
   generateRecommendations(); // rescan the last 7 days (idempotent per rule)
   const recs = listRecommendations("open").slice(0, 5);
+  // one tap = the approval: numbered rows + an Apply/Dismiss button pair per recommendation. The tap
+  // routes through the permission layer (audited) and only ever flips policy via the budget-manager.
+  const buttons: Button[][] = recs.map((r, i) => [
+    { text: `✅ Apply ${i + 1}`, data: `rec:${r.id}:apply` },
+    { text: `✖️ Dismiss ${i + 1}`, data: `rec:${r.id}:dismiss` },
+  ]);
   return {
     text: listCard(
       "🧠 <b>Optimization recommendations</b>",
-      recs.map((r) => `• <b>${esc(redact(r.title))}</b>${r.impact ? ` — <i>${esc(redact(r.impact))}</i>` : ""}`),
+      recs.map((r, i) => `<b>${i + 1}.</b> <b>${esc(redact(r.title))}</b>${r.impact ? ` — <i>${esc(redact(r.impact))}</i>` : ""}`),
       "no open recommendations — usage looks healthy",
     ),
+    buttons: buttons.length ? buttons : undefined,
   };
+}
+
+/** What a one-tap "apply" concretely did — mirrors setRecommendationStatus's rule handling. */
+function appliedNote(rule: string): string {
+  if (rule.startsWith("policy.agent."))
+    return `budget policy (balanced) set for <b>${esc(redact(rule.slice("policy.agent.".length)))}</b>`;
+  if (rule.startsWith("route.downgrade."))
+    return `economy policy set for <b>${esc(redact(rule.slice("route.downgrade.".length)))}</b> — the outcome router now prefers the proven cheaper model`;
+  return "marked applied — no automatic policy change for this rule";
 }
 
 function newTaskButtons(id: string): Button[][] {
@@ -389,6 +406,17 @@ export async function executeCommand(provider: PhoneProvider, plan: CommandPlan,
       } catch {
         return { text: warn("Usage: /setmode economy|balanced|high_quality|emergency") };
       }
+    }
+
+    case "recommendation_button": {
+      // one-tap apply/dismiss from the /optimize card. Mutating → went through enforce() above
+      // (medium risk, audited). Apply only ever writes policy through the validated budget-manager.
+      const rec = getRecommendation(plan.id);
+      if (!rec) return { text: err("That recommendation no longer exists.") };
+      if (rec.status !== "open") return { text: warn(`Already ${rec.status}.`) };
+      setRecommendationStatus(plan.id, plan.choice === "apply" ? "applied" : "dismissed", actor, "telegram");
+      if (plan.choice === "dismiss") return { text: ok("Recommendation dismissed.") };
+      return { text: info("✅ Recommendation applied", [`<b>${esc(redact(rec.title))}</b>`, appliedNote(rec.rule)]) };
     }
 
     case "approve_cost": {

@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { verifySession } from "@/lib/session";
 import { enforce, permissionStatusOf, type Action } from "@/lib/permissions";
 import { checkRunBudget } from "@/lib/token-optimization/budget-manager";
-import { routeModel } from "@/lib/token-optimization/model-router";
+import { outcomeRoute } from "@/lib/token-optimization/outcome-routing";
 import { recordUsage } from "@/lib/token-optimization/ledger";
 import { recordAudit } from "@/lib/db";
 
@@ -52,7 +52,9 @@ export async function POST(req: Request) {
     if (Number.isFinite(est) && est > 0) {
       const risk = (d.decision?.risk ?? "low") as "low" | "medium" | "high" | "critical";
       budget = checkRunBudget({ agent_id: agentId, team_id: teamId, work_item_id: workItemId, estimated_tokens: est, risk });
-      route = routeModel({ title: String((action as { title?: unknown }).title ?? ""), risk, mode: budget.mode });
+      // outcome-aware routing: real ok/failed history per agent×model from the ledger bends the rung —
+      // proven-cheaper downgrades, quality-guard/failure upgrades. Deterministic; explanation in route.reason.
+      route = outcomeRoute({ title: String((action as { title?: unknown }).title ?? ""), risk, mode: budget.mode, agent_id: agentId });
       try {
         recordUsage({
           agent_id: agentId,

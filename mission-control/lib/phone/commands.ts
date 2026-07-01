@@ -27,6 +27,7 @@ export type CommandPlan =
   | { kind: "expensive" }
   | { kind: "optimize" }
   | { kind: "set_token_mode"; mode: TokenMode }
+  | { kind: "recommendation_button"; id: string; choice: "apply" | "dismiss" }
   | { kind: "approve_cost"; idPrefix: string }
   | { kind: "usage"; hint: string } // bad/missing args → a short usage hint (read-only)
   | { kind: "unknown"; text: string };
@@ -56,6 +57,8 @@ export function routeCommand(provider: PhoneProvider, incoming: IncomingMessage)
     if (m) return { kind: "decision", approvalId: m[1], action: m[2] as "approve" };
     m = data.match(/^new:([0-9a-fA-F-]{8,}):(create|frontend|backend|qa|manager|cancel)$/);
     if (m) return { kind: "new_task_button", approvalId: m[1], choice: m[2] as "create" };
+    m = data.match(/^rec:([0-9a-fA-F-]{8,}):(apply|dismiss)$/);
+    if (m) return { kind: "recommendation_button", id: m[1], choice: m[2] as "apply" };
     return { kind: "unknown", text: data };
   }
 

@@ -123,6 +123,9 @@ const PHONE_VERB_RISK: Record<string, Risk> = {
   // token-optimization mode switch: medium (audited, allowed for the trusted phone operator) —
   // "emergency" is additionally gated inside setGlobalMode itself (it always raises an approval).
   set_token_mode: "medium",
+  // one-tap apply/dismiss of an optimization recommendation: medium — apply only ever flips a
+  // budget policy through the validated, server-side-clamped budget-manager.
+  recommendation_button: "medium",
 };
 
 /** PURE: detect the risk + categories of an action from its inputs. No I/O. Conservative. */
