@@ -8,7 +8,7 @@ import { redact, redactPreview } from "./redact.ts";
 
 export type ApprovalKind =
   | "merge" | "cap_increase" | "force_opus" | "deploy"
-  | "secret_access" | "plan_signoff" | "risky_action" | "prompt_confirm" | "workflow_step";
+  | "secret_access" | "plan_signoff" | "risky_action" | "prompt_confirm" | "workflow_step" | "escalation";
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 export type DecidedVia = "dashboard" | "phone" | "telegram" | "whatsapp" | "api";
 
@@ -38,7 +38,7 @@ export interface Approval {
 
 const APPROVAL_KINDS: ApprovalKind[] = [
   "merge", "cap_increase", "force_opus", "deploy",
-  "secret_access", "plan_signoff", "risky_action", "prompt_confirm", "workflow_step",
+  "secret_access", "plan_signoff", "risky_action", "prompt_confirm", "workflow_step", "escalation",
 ];
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_PREVIEW = 900;

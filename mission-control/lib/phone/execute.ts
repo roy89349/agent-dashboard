@@ -30,7 +30,7 @@ export interface Reply {
 // (audited + approval-gated) below — fail-closed, so a new mutating verb can't silently bypass.
 // these produce no fleet mutation — they only render or park a pending approval (which is the real gate).
 // `decompose` only PROPOSES a plan (a plan_signoff approval); nothing is created until you approve it.
-const PHONE_READONLY = new Set(["unauthorized", "empty", "help", "unknown", "status", "decision", "new_task_button", "free_text", "decompose"]);
+const PHONE_READONLY = new Set(["unauthorized", "empty", "help", "unknown", "status", "decision", "new_task_button", "free_text", "decompose", "summary"]);
 
 function phoneSummary(plan: CommandPlan): string {
   switch (plan.kind) {
@@ -204,6 +204,18 @@ export async function executeCommand(provider: PhoneProvider, plan: CommandPlan,
       }
     }
 
+    case "summary": {
+      // the Communication Agent's latest team status — one voice, already HTML-safe (renderSummaryText escapes).
+      try {
+        const { generateSummary, renderSummaryText } = await import("../communication");
+        const s = generateSummary({ type: "live", created_by: actor });
+        audit("comm.summary", "via /summary");
+        return { text: renderSummaryText(s) };
+      } catch (e) {
+        return { text: err(`Could not build the summary: ${e instanceof Error ? e.message : "error"}`) };
+      }
+    }
+
     case "free_text": {
       // Treat as a message to the Manager: park it as a pending prompt_confirm approval + offer buttons.
       const { approval } = createApproval({
@@ -262,9 +274,11 @@ async function decideReply(
     const first = a.status === "pending";
     if (action === "pause") {
       const paused = decideApproval(id, "reject", { via: "telegram", by: actor, trusted: true, reason: "paused via phone" });
-      if (a.issue) appendCommand({ cmd: "cancel", issue: a.issue });
+      // an escalation is a pure question — dismiss it, but never cancel the underlying issue's work.
+      const cancelled = !!a.issue && a.kind !== "escalation";
+      if (cancelled) appendCommand({ cmd: "cancel", issue: a.issue! });
       if (first) { handlePlanRejection(paused, actor); handleWorkflowRejection(paused, actor); handleDecompositionRejection(paused, actor); } // a paused plan/step/decomposition → block + feedback
-      return { text: ok(`Paused${a.issue ? ` #${esc(a.issue)}` : ""} and dismissed the approval.`) };
+      return { text: ok(cancelled ? `Paused #${esc(a.issue!)} and dismissed the approval.` : "Dismissed the approval.") };
     }
     const decided = decideApproval(id, action, { via: "telegram", by: actor, trusted: true });
     if (action === "reject" && first) { handlePlanRejection(decided, actor); handleWorkflowRejection(decided, actor); handleDecompositionRejection(decided, actor); } // rejected plan/step/decomposition → block + feedback

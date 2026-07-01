@@ -150,6 +150,12 @@ export function listThread(threadId: string): AgentMessage[] {
   return (db().prepare("SELECT * FROM agent_messages WHERE thread_id = ? ORDER BY created_at ASC, id ASC").all(String(threadId)) as Record<string, unknown>[]).map(rowToMessage);
 }
 
+/** Recent agent messages across ALL work items (newest first) — for the Communication Agent's context. */
+export function listRecentAgentMessages(limit = 100): AgentMessage[] {
+  const n = Math.min(500, Math.max(1, Math.trunc(limit)));
+  return (db().prepare("SELECT * FROM agent_messages ORDER BY id DESC LIMIT ?").all(n) as Record<string, unknown>[]).map(rowToMessage);
+}
+
 export function listMessagesForWorkItem(workItemId: string): AgentMessage[] {
   return (db().prepare("SELECT * FROM agent_messages WHERE work_item_id = ? ORDER BY created_at ASC, id ASC").all(String(workItemId)) as Record<string, unknown>[]).map(rowToMessage);
 }

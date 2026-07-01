@@ -20,6 +20,7 @@ import {
   Layers,
   GitBranch,
   Split,
+  Megaphone,
 } from "lucide-react";
 import { CommandPalette } from "./command-palette";
 import { MobileNav } from "./mobile-nav";
@@ -34,6 +35,7 @@ const NAV = [
   { href: "/manager", label: "Manager", icon: Split },
   { href: "/approvals", label: "Decisions", icon: Inbox },
   { href: "/war-room", label: "War Room", icon: Radio },
+  { href: "/updates", label: "Updates", icon: Megaphone },
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/team-composer", label: "Team Composer", icon: Network },
   { href: "/skills", label: "Skills", icon: Boxes },
@@ -49,6 +51,7 @@ const TITLES: Record<string, string> = {
   "/manager": "Manager / Decomposer",
   "/approvals": "Decision Inbox",
   "/war-room": "War Room",
+  "/updates": "Updates — Communication Agent",
   "/workers": "Worker Lanes",
   "/agents": "Agents",
   "/team-composer": "Team Composer",

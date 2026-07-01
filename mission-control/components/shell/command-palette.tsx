@@ -21,6 +21,7 @@ import {
   Layers,
   GitBranch,
   Split,
+  Megaphone,
 } from "lucide-react";
 
 type Item = {
@@ -71,6 +72,7 @@ export function CommandPalette({
       { group: "Navigation", label: "Manager", hint: "split big tasks into subtasks", icon: Split, run: go("/manager") },
       { group: "Navigation", label: "Decision Inbox", hint: "pending approvals", icon: Inbox, run: go("/approvals") },
       { group: "Navigation", label: "War Room", hint: "live control room", icon: Radio, run: go("/war-room") },
+      { group: "Navigation", label: "Updates", hint: "team summaries · ask the team", icon: Megaphone, run: go("/updates") },
       { group: "Navigation", label: "Worker Lanes", hint: "live build slots", icon: Radio, run: go("/workers") },
       { group: "Navigation", label: "Agents", hint: "the team", icon: Users, run: go("/agents") },
       { group: "Navigation", label: "Team Composer", hint: "compose your AI team", icon: Network, run: go("/team-composer") },

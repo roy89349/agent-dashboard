@@ -60,7 +60,9 @@ export async function POST(req: Request) {
         via: "dashboard", by: "dashboard", trusted: true, reason: b.reason ?? "paused via dashboard",
       });
       let detail = "paused (approval dismissed)";
-      if (decided.issue != null) {
+      // an escalation is a pure QUESTION (it may carry an issue only for traceability) — pausing it must NOT
+      // cancel the underlying work; only kinds whose action owns the issue's task get the cancel side effect.
+      if (decided.issue != null && decided.kind !== "escalation") {
         appendCommand({ cmd: "cancel", issue: decided.issue });
         detail = `paused and cancelled #${decided.issue}`;
       }

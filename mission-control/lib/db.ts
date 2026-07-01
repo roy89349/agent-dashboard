@@ -213,6 +213,21 @@ export function db(): DatabaseSync {
     );
     CREATE INDEX IF NOT EXISTS idx_manager_plans_wi ON manager_plans(work_item_id);
     CREATE INDEX IF NOT EXISTS idx_manager_plans_status ON manager_plans(status, updated_at DESC);
+    -- communication agent (chief of staff): stored SUMMARIES over the whole floor so Roy gets one voice, not ten.
+    -- Real choices stay Decision-Inbox approvals; these summaries only REFERENCE them (traceable via *_id + issue/pr).
+    CREATE TABLE IF NOT EXISTS communication_summaries (
+      id              TEXT PRIMARY KEY,
+      team_id         TEXT,                            -- null = whole fleet
+      type            TEXT NOT NULL,                   -- live|hourly|daily_standup|end_of_day|urgent_question
+      title           TEXT,
+      sections_json   TEXT NOT NULL,                   -- the 6 sections, each a list of source refs (REDACTED)
+      period_start    TEXT,
+      period_end      TEXT,
+      created_by      TEXT,                            -- the communicator agent id, or 'system'
+      delivered_phone INTEGER NOT NULL DEFAULT 0,
+      created_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_comm_summaries ON communication_summaries(created_at DESC);
   `);
   // additive migrations for existing dbs (ADD COLUMN is idempotent-safe: errors if the column exists → ignore)
   for (const col of [
