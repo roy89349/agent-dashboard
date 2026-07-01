@@ -120,6 +120,9 @@ const PHONE_VERB_RISK: Record<string, Risk> = {
   fleet_mode: "medium", // refined below (stop ⇒ high)
   breaker_reset: "medium", cancel: "medium", priority: "low", continue: "medium",
   create_task: "low", free_text: "low",
+  // token-optimization mode switch: medium (audited, allowed for the trusted phone operator) —
+  // "emergency" is additionally gated inside setGlobalMode itself (it always raises an approval).
+  set_token_mode: "medium",
 };
 
 /** PURE: detect the risk + categories of an action from its inputs. No I/O. Conservative. */

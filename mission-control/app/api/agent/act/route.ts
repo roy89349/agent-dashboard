@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifySession } from "@/lib/session";
 import { enforce, permissionStatusOf, type Action } from "@/lib/permissions";
+import { checkRunBudget } from "@/lib/token-optimization/budget-manager";
+import { routeModel } from "@/lib/token-optimization/model-router";
+import { recordUsage } from "@/lib/token-optimization/ledger";
+import { recordAudit } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,7 +42,40 @@ export async function POST(req: Request) {
     const d = await enforce(action, { agentId, teamId, workItemId, initiator: "agent", via: "fleet", actor: agentId }, { notify: true });
     if (!d.allowed)
       return NextResponse.json({ allowed: false, approvalId: d.approvalId, decision: d.decision }, { status: 202 });
-    return NextResponse.json({ allowed: true, decision: d.decision });
+
+    // Token optimization gate (AFTER permissions — safety first, then budget): an optional
+    // estimated_tokens on the request lets the runner pre-clear budget; the router advice tells it
+    // which model/effort/depth to use. Both audited; the run itself is logged into the ledger.
+    const est = Number((body as { estimated_tokens?: unknown }).estimated_tokens);
+    let budget = null;
+    let route = null;
+    if (Number.isFinite(est) && est > 0) {
+      const risk = (d.decision?.risk ?? "low") as "low" | "medium" | "high" | "critical";
+      budget = checkRunBudget({ agent_id: agentId, team_id: teamId, work_item_id: workItemId, estimated_tokens: est, risk });
+      route = routeModel({ title: String((action as { title?: unknown }).title ?? ""), risk, mode: budget.mode });
+      try {
+        recordUsage({
+          agent_id: agentId,
+          team_id: teamId ?? null,
+          work_item_id: workItemId ?? null,
+          model: route.selected_model,
+          effort: route.selected_effort,
+          depth: route.selected_depth,
+          estimated_input_tokens: Math.floor(est),
+          optimization_mode: budget.mode,
+          result_status: budget.allowed ? "ok" : "blocked",
+          source: "gateway",
+        });
+      } catch {}
+      if (!budget.allowed) {
+        recordAudit({ actor: agentId, via: "fleet", action: "tokens.budget.gated", detail: budget.reason.slice(0, 180) });
+        return NextResponse.json(
+          { allowed: false, budget, route, approvalId: budget.approval_id, reason: budget.reason },
+          { status: 202 },
+        );
+      }
+    }
+    return NextResponse.json({ allowed: true, decision: d.decision, budget, route });
   } catch (e) {
     if (permissionStatusOf(e) === 403)
       return NextResponse.json({ allowed: false, denied: true, reason: e instanceof Error ? e.message : "denied" }, { status: 403 });

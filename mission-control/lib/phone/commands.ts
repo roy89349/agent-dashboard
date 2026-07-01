@@ -20,7 +20,19 @@ export type CommandPlan =
   | { kind: "priority"; issue: number; level: "high" | "normal" | "low" }
   | { kind: "decision"; approvalId: string; action: "approve" | "reject" | "info" | "manager" | "pause" }
   | { kind: "new_task_button"; approvalId: string; choice: "create" | "frontend" | "backend" | "qa" | "manager" | "cancel" }
+  // ── token optimization (read-only reports + two audited mutations) ──
+  | { kind: "tokens"; costs: boolean }
+  | { kind: "budget" }
+  | { kind: "savings" }
+  | { kind: "expensive" }
+  | { kind: "optimize" }
+  | { kind: "set_token_mode"; mode: TokenMode }
+  | { kind: "approve_cost"; idPrefix: string }
+  | { kind: "usage"; hint: string } // bad/missing args → a short usage hint (read-only)
   | { kind: "unknown"; text: string };
+
+export type TokenMode = "economy" | "balanced" | "high_quality" | "emergency";
+const TOKEN_MODES: readonly string[] = ["economy", "balanced", "high_quality", "emergency"];
 
 // roles that have a dedicated /<role> shortcut (still config-driven downstream via label_scope)
 const ROLE_COMMANDS = new Set([
@@ -103,6 +115,31 @@ export function routeCommand(provider: PhoneProvider, incoming: IncomingMessage)
       const n = intArg(args);
       return n ? { kind: "cancel", issue: n } : { kind: "help" };
     }
+    // ── token optimization ──
+    case "tokens":
+    case "token_report":
+      return { kind: "tokens", costs: false };
+    case "costs":
+      return { kind: "tokens", costs: true };
+    case "budget":
+      return { kind: "budget" };
+    case "savings":
+      return { kind: "savings" };
+    case "expensive":
+      return { kind: "expensive" };
+    case "optimize":
+      return { kind: "optimize" };
+    case "setmode": {
+      const m = args.trim().toLowerCase();
+      if (TOKEN_MODES.includes(m)) return { kind: "set_token_mode", mode: m as TokenMode };
+      return { kind: "usage", hint: "/setmode economy|balanced|high_quality|emergency" };
+    }
+    case "approve_cost": {
+      // an approval id prefix — at least 6 chars so a typo can't match the wrong approval
+      const p = args.trim().toLowerCase();
+      if (/^[0-9a-f-]{6,40}$/.test(p)) return { kind: "approve_cost", idPrefix: p };
+      return { kind: "usage", hint: "/approve_cost <approval id — at least the first 6 characters>" };
+    }
     case "priority": {
       const n = intArg(args);
       const lvl = /high/i.test(args) ? "high" : /low/i.test(args) ? "low" : /normal/i.test(args) ? "normal" : null;
@@ -125,6 +162,8 @@ export const HELP_TEXT = [
   "Team:    /summary  → the Communication Agent's latest team status",
   "Roles:   /assign <role> <text>   /frontend <text>   /backend <text>   /qa <text>   /security <text>   /manager <text>",
   "Work:    /continue <issue>   /cancel <issue>   /priority <issue> high|normal|low",
+  "Tokens:  /tokens  /costs  /budget  /savings  /expensive  /optimize",
+  "         /setmode economy|balanced|high_quality|emergency   /approve_cost <id>",
   "",
   "Or just send a normal message → I'll offer to make it a task.",
   "Approvals arrive with Approve / Reject / More info / Let manager decide / Pause buttons.",

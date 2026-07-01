@@ -26,6 +26,7 @@ import {
   Trophy,
   Wand2,
   ScrollText,
+  Coins,
   type LucideIcon,
 } from "lucide-react";
 import { CommandPalette } from "./command-palette";
@@ -62,6 +63,7 @@ const NAV_GROUPS: { section: string; items: { href: string; label: string; icon:
       { href: "/kennis", label: "Knowledge", icon: BookOpen },
       { href: "/kpis", label: "KPIs", icon: BarChart3 },
       { href: "/costs", label: "Costs", icon: Gauge },
+      { href: "/token-optimization", label: "Tokens", icon: Coins },
       { href: "/agent-performance", label: "Performance", icon: Trophy },
     ],
   },
@@ -100,6 +102,7 @@ const TITLES: Record<string, string> = {
   "/kennis": "Knowledge",
   "/kpis": "KPIs",
   "/costs": "Costs & usage",
+  "/token-optimization": "Token Optimization",
   "/agent-performance": "Agent performance",
   "/audit": "Audit Log",
   "/config": "Config",

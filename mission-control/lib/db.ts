@@ -316,6 +316,89 @@ export function db(): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_audit_events_created ON audit_events(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events(action, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_events_actor ON audit_events(actor_id, created_at DESC);
+
+    -- ── token optimization layer (lib/token-optimization/*) — all additive ──
+    -- Per-run usage ledger. estimate vs actual is ALWAYS explicit (actual_* stays NULL when unknown).
+    CREATE TABLE IF NOT EXISTS token_usage_events (
+      id                       TEXT PRIMARY KEY,
+      agent_id                 TEXT,
+      team_id                  TEXT,
+      work_item_id             TEXT,
+      workflow_id              TEXT,
+      workflow_step_id         TEXT,
+      model                    TEXT,
+      effort                   TEXT,
+      depth                    TEXT,
+      estimated_input_tokens   INTEGER,
+      estimated_output_tokens  INTEGER,
+      actual_input_tokens      INTEGER,
+      actual_output_tokens     INTEGER,
+      estimated_cost_usd       REAL,
+      actual_cost_usd          REAL,
+      cache_hit                INTEGER NOT NULL DEFAULT 0,
+      compression_used         INTEGER NOT NULL DEFAULT 0,
+      context_blocks_json      TEXT,               -- REDACTED [{kind,tokens,included}]
+      optimization_mode        TEXT,               -- economy|balanced|high_quality|emergency
+      result_status            TEXT,               -- ok|failed|blocked|unknown
+      source                   TEXT,               -- chat|gateway|worker|manual
+      created_at               TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_tokens_created ON token_usage_events(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_tokens_agent ON token_usage_events(agent_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_tokens_workflow ON token_usage_events(workflow_id, created_at DESC);
+    -- Semantic context cache: expensive summaries/analyses keyed by a source hash (invalidation = hash change).
+    CREATE TABLE IF NOT EXISTS context_cache (
+      key            TEXT PRIMARY KEY,             -- kind:scope:source-id
+      kind           TEXT NOT NULL,                -- file_summary|task_summary|knowledge_summary|dependency_map|analysis|log_summary
+      source_hash    TEXT NOT NULL,
+      content        TEXT NOT NULL,                -- REDACTED before write
+      token_estimate INTEGER NOT NULL,
+      hits           INTEGER NOT NULL DEFAULT 0,
+      misses         INTEGER NOT NULL DEFAULT 0,
+      created_at     TEXT NOT NULL,
+      updated_at     TEXT NOT NULL
+    );
+    -- Stored compression results with quality metadata.
+    CREATE TABLE IF NOT EXISTS context_summaries (
+      id                TEXT PRIMARY KEY,
+      source_kind       TEXT NOT NULL,             -- conversation|log|diff|knowledge|file|workflow_state
+      source_ref        TEXT,
+      source_hash       TEXT NOT NULL,
+      mode              TEXT NOT NULL,             -- lossy|lossless_ish
+      summary           TEXT NOT NULL,             -- REDACTED before write
+      tokens_before     INTEGER NOT NULL,
+      tokens_after      INTEGER NOT NULL,
+      compression_ratio REAL NOT NULL,
+      confidence        REAL NOT NULL,             -- 0..1; low ⇒ needs_raw_context
+      invalidation      TEXT,                      -- rule description
+      created_at        TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ctx_summaries_hash ON context_summaries(source_hash);
+    -- Budget policies per scope (server-side validated; settings hold the global defaults).
+    CREATE TABLE IF NOT EXISTS token_budget_policies (
+      id                  TEXT PRIMARY KEY,
+      scope               TEXT NOT NULL,           -- agent|team|workflow|task|day|model
+      scope_id            TEXT NOT NULL,           -- '*' = default for the scope
+      mode                TEXT NOT NULL,           -- economy|balanced|high_quality|emergency
+      max_context_tokens  INTEGER,
+      max_run_tokens      INTEGER,
+      max_day_tokens      INTEGER,
+      max_retries         INTEGER,
+      approval_threshold_tokens INTEGER,
+      updated_at          TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_budget_scope ON token_budget_policies(scope, scope_id);
+    -- Rule-based optimization advice (apply/dismiss via UI/phone).
+    CREATE TABLE IF NOT EXISTS optimization_recommendations (
+      id          TEXT PRIMARY KEY,
+      rule        TEXT NOT NULL,
+      title       TEXT NOT NULL,
+      detail      TEXT,
+      impact      TEXT,                            -- human estimate, e.g. "~42% of workflow tokens"
+      status      TEXT NOT NULL DEFAULT 'open',    -- open|applied|dismissed
+      created_at  TEXT NOT NULL,
+      updated_at  TEXT NOT NULL
+    );
   `);
   // additive migrations for existing dbs (ADD COLUMN is idempotent-safe: errors if the column exists → ignore)
   for (const col of [

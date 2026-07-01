@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Gauge, RefreshCw, AlertTriangle, Settings2, Info } from "lucide-react";
+import { Gauge, RefreshCw, AlertTriangle, Settings2, Info, Coins, ArrowRight } from "lucide-react";
 import { Bars, Select, PERIODS } from "./parts";
 import type { UsageRow, UsageGroup, BudgetRow, BudgetConfig, CostModel } from "@/lib/costs";
 import type { Period } from "@/lib/analytics-shared";
@@ -32,6 +33,13 @@ export function CostsView() {
         <button onClick={() => setCfgOpen(!cfgOpen)} className="glass-card glass-hover ml-auto inline-flex h-10 items-center gap-1.5 px-3 text-xs text-white/60 hover:text-white/90"><Settings2 className="size-3.5" /> Budgets</button>
         <button onClick={load} aria-label="Refresh" className="glass-card glass-hover grid size-10 place-items-center text-white/50 hover:text-white/80"><RefreshCw className="size-4" /></button>
       </div>
+
+      {/* token-optimization link banner */}
+      <Link href="/token-optimization" className="glass-card glass-hover mb-4 flex min-h-11 items-center gap-2.5 px-3.5 py-2.5 text-xs text-white/70 hover:text-white">
+        <Coins className="size-4 shrink-0 text-emerald-300" />
+        <span className="min-w-0 flex-1 truncate"><b className="font-semibold text-white/85">Token Optimization</b> — budgets, savings and per-run usage</span>
+        <ArrowRight className="size-3.5 shrink-0 text-white/35" />
+      </Link>
 
       {/* honesty banner */}
       <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-xs text-amber-200/90 backdrop-blur-md glow-warn">

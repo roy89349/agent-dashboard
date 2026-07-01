@@ -27,6 +27,7 @@ import {
   Trophy,
   Wand2,
   ScrollText,
+  Coins,
 } from "lucide-react";
 
 type Item = {
@@ -88,6 +89,7 @@ export function CommandPalette({
       { group: "Navigation", label: "Build Team", hint: "team-from-project wizard", icon: Wand2, run: go("/build-team") },
       { group: "Navigation", label: "KPIs", hint: "productivity · quality · speed", icon: BarChart3, run: go("/kpis") },
       { group: "Navigation", label: "Costs", hint: "usage estimates · budgets", icon: Gauge, run: go("/costs") },
+      { group: "Navigation", label: "Token Optimization", hint: "token usage · budgets · savings", icon: Coins, run: go("/token-optimization") },
       { group: "Navigation", label: "Agent Performance", hint: "leaderboard", icon: Trophy, run: go("/agent-performance") },
       { group: "Navigation", label: "Audit Log", hint: "traceable action trail", icon: ScrollText, run: go("/audit") },
       { group: "Navigation", label: "Config", icon: Settings, run: go("/config") },

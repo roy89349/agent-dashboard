@@ -78,6 +78,18 @@ export async function runApprovalAction(a: Approval): Promise<{ ok: boolean; det
         const r = await approveDecomposition(mp, a.decided_by ?? "approval"); // materialise subtasks + workflow
         return { ok: true, detail: `decomposed into ${r.children.length} subtasks` };
       }
+      case "set_setting": {
+        // STRICT allowlist — an approval may only flip the token-optimization mode, never arbitrary
+        // settings (prevents a crafted approval from writing security-relevant config).
+        const key = String(action.key ?? "");
+        const value = String(action.value ?? "");
+        if (key !== "tokens.mode" || !["economy", "balanced", "high_quality", "emergency"].includes(value))
+          return { ok: false, detail: `set_setting not allowed for ${key}` };
+        const { setSetting, recordAudit } = await import("../db.ts");
+        setSetting(key, value);
+        recordAudit({ actor: a.decided_by ?? "approval", via: "approval", action: "tokens.mode", detail: value });
+        return { ok: true, detail: `token mode → ${value}` };
+      }
       case "noop":
       case "ack":
         // sign-off style approvals (plan_signoff, prompt_confirm) — the decision IS the outcome,
