@@ -4,6 +4,7 @@ import { routeCommand } from "@/lib/phone/commands";
 import { executeCommand } from "@/lib/phone/execute";
 import { recordAudit, setSetting } from "@/lib/db";
 import { redact } from "@/lib/redact";
+import { logPhoneMessage } from "@/lib/conversations";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -44,6 +45,11 @@ export async function POST(req: Request) {
     if (incoming.isCallback && incoming.callbackQueryId) await provider.answerCallback(incoming.callbackQueryId);
     const plan = routeCommand(provider, incoming);
     const reply = await executeCommand(provider, plan, incoming.chatId);
+    // log the (verified) phone exchange into the Team Chat so it's visible in Conversations (never blocks the reply)
+    try {
+      logPhoneMessage({ direction: "in", text: String(incoming.text || incoming.callbackData || "").slice(0, 500), chatId: incoming.chatId });
+      logPhoneMessage({ direction: "out", text: String(reply.text).slice(0, 500), chatId: incoming.chatId });
+    } catch { /* conversation logging is best-effort */ }
     await provider.sendMessage(reply.text, { buttons: reply.buttons, chatId: incoming.chatId });
   } catch (e) {
     setSetting("phone_last_error", JSON.stringify({ ts: new Date().toISOString(), error: e instanceof Error ? e.message : "error" }));

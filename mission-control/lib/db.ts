@@ -292,9 +292,20 @@ export function db(): DatabaseSync {
     "ALTER TABLE work_items ADD COLUMN mode TEXT NOT NULL DEFAULT 'build_after_approval'",
     "ALTER TABLE work_items ADD COLUMN plan_json TEXT",
     "ALTER TABLE work_items ADD COLUMN plan_summary TEXT",
+    // structured conversations — additive link columns (kind stays TEXT: old 'orchestrator'/'task' rows keep working;
+    // new kinds team|agent|decision|task|workflow|summary are just new values). messages gets a type + author agent.
+    "ALTER TABLE conversations ADD COLUMN team_id TEXT",
+    "ALTER TABLE conversations ADD COLUMN agent_id TEXT",
+    "ALTER TABLE conversations ADD COLUMN work_item_id TEXT",
+    "ALTER TABLE conversations ADD COLUMN workflow_id TEXT",
+    "ALTER TABLE conversations ADD COLUMN approval_id TEXT",
+    "ALTER TABLE conversations ADD COLUMN archived INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE messages ADD COLUMN type TEXT",
+    "ALTER TABLE messages ADD COLUMN agent_id TEXT",
   ]) {
     try { d.exec(col); } catch { /* column already exists */ }
   }
+  try { d.exec("CREATE INDEX IF NOT EXISTS idx_conversations_kind ON conversations(kind, updated_at DESC)"); } catch { /* older sqlite */ }
   _db = d;
   return d;
 }

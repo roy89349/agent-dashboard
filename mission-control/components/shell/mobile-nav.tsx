@@ -28,7 +28,7 @@ const MORE = [
   { href: "/team-composer", label: "Team Composer", icon: Network, hint: "compose your AI team" },
   { href: "/skills", label: "Skill Library", icon: Boxes, hint: "agent capabilities" },
   { href: "/", label: "Tasks", icon: ListTodo, hint: "the kanban board" },
-  { href: "/chats", label: "Conversations", icon: MessagesSquare, hint: "orchestrator chat" },
+  { href: "/conversations", label: "Conversations", icon: MessagesSquare, hint: "team · tasks · decisions · logs" },
   { href: "/kennis", label: "Knowledge", icon: BookOpen, hint: "project brain" },
   { href: "/build-team", label: "Build Team", icon: Wand2, hint: "team-from-project wizard" },
   { href: "/kpis", label: "KPIs", icon: BarChart3, hint: "productivity · quality · speed" },
