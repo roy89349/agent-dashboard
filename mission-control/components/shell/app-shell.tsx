@@ -17,6 +17,7 @@ import {
   Pause,
   Network,
   Boxes,
+  Layers,
 } from "lucide-react";
 import { CommandPalette } from "./command-palette";
 import { MobileNav } from "./mobile-nav";
@@ -26,6 +27,7 @@ import type { FleetStatus } from "@/lib/types";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/work-items", label: "Work Items", icon: Layers },
   { href: "/approvals", label: "Decisions", icon: Inbox },
   { href: "/workers", label: "War Room", icon: Radio },
   { href: "/agents", label: "Agents", icon: Users },
@@ -38,6 +40,7 @@ const NAV = [
 
 const TITLES: Record<string, string> = {
   "/": "Dashboard",
+  "/work-items": "Work Items",
   "/approvals": "Decision Inbox",
   "/workers": "War Room",
   "/agents": "Agents",

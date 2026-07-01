@@ -93,6 +93,49 @@ export function db(): DatabaseSync {
       detail      TEXT                  -- REDACTED JSON detail
     );
     CREATE INDEX IF NOT EXISTS idx_audit_id ON audit(id DESC);
+    -- work items: every task is a traceable unit (additive — GitHub issue cards still work; a work item
+    -- links to an issue/pr by number). Mutations are validated + audited server-side (lib/work-items.ts).
+    CREATE TABLE IF NOT EXISTS work_items (
+      id                TEXT PRIMARY KEY,
+      source_type       TEXT NOT NULL,                    -- github_issue|chat|phone|agent|manual|workflow
+      source_ref        TEXT,
+      title             TEXT NOT NULL,
+      description       TEXT,                             -- REDACTED before insert
+      assigned_agent_id TEXT,
+      assigned_role     TEXT,
+      team_id           TEXT,
+      state             TEXT NOT NULL DEFAULT 'queued',   -- queued|running|blocked|waiting_user|review|failed|done|cancelled
+      priority          TEXT NOT NULL DEFAULT 'normal',   -- low|normal|high|urgent
+      risk_level        TEXT NOT NULL DEFAULT 'low',      -- low|medium|high|critical
+      parent_task_id    TEXT,
+      issue             INTEGER,
+      pr                INTEGER,
+      created_by        TEXT,
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_work_items_state ON work_items(state, updated_at DESC);
+    -- one work item per GitHub issue (partial: issue is nullable) — enforces the idempotency guarantee
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_work_items_issue ON work_items(issue) WHERE issue IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_work_items_parent ON work_items(parent_task_id);
+    -- structured inter-agent collaboration log (handoffs/reviews/blockers/questions/results) — NOT a chatlayer.
+    CREATE TABLE IF NOT EXISTS agent_messages (
+      id             TEXT PRIMARY KEY,
+      from_agent_id  TEXT,
+      to_agent_id    TEXT,
+      to_role        TEXT,
+      work_item_id   TEXT,
+      type           TEXT NOT NULL,                       -- handoff|review_request|question|result|blocker|instruction|summary
+      payload_json   TEXT,                                -- REDACTED JSON
+      thread_id      TEXT,
+      status         TEXT NOT NULL DEFAULT 'pending',     -- pending|accepted|in_progress|done|rejected
+      requires_human INTEGER NOT NULL DEFAULT 0,
+      approval_id    TEXT,                                -- durable approval created when requires_human
+      created_at     TEXT NOT NULL,
+      resolved_at    TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_messages_wi ON agent_messages(work_item_id, id);
+    CREATE INDEX IF NOT EXISTS idx_agent_messages_thread ON agent_messages(thread_id, id);
   `);
   _db = d;
   return d;

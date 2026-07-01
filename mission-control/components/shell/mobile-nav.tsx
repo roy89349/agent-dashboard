@@ -8,7 +8,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import {
   LayoutDashboard, Inbox, Radio, Users, MoreHorizontal,
   MessagesSquare, BookOpen, Settings, Smartphone, ListTodo,
-  Play, Pause, Square, X, Network, Boxes,
+  Play, Pause, Square, X, Network, Boxes, Layers,
 } from "lucide-react";
 import type { FleetStatus } from "@/lib/types";
 
@@ -20,6 +20,7 @@ const PRIMARY = [
 ];
 
 const MORE = [
+  { href: "/work-items", label: "Work Items", icon: Layers, hint: "tasks + handoffs" },
   { href: "/team-composer", label: "Team Composer", icon: Network, hint: "compose your AI team" },
   { href: "/skills", label: "Skill Library", icon: Boxes, hint: "agent capabilities" },
   { href: "/", label: "Tasks", icon: ListTodo, hint: "the kanban board" },

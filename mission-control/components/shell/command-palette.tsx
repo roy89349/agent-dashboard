@@ -18,6 +18,7 @@ import {
   Radio,
   Network,
   Boxes,
+  Layers,
 } from "lucide-react";
 
 type Item = {
@@ -63,6 +64,7 @@ export function CommandPalette({
     };
     return [
       { group: "Navigation", label: "Dashboard", icon: LayoutDashboard, run: go("/") },
+      { group: "Navigation", label: "Work Items", hint: "tasks + handoffs", icon: Layers, run: go("/work-items") },
       { group: "Navigation", label: "Decision Inbox", hint: "pending approvals", icon: Inbox, run: go("/approvals") },
       { group: "Navigation", label: "War Room", hint: "live who's doing what", icon: Radio, run: go("/workers") },
       { group: "Navigation", label: "Agents", hint: "the team", icon: Users, run: go("/agents") },
