@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       actor: incoming.chatId,
       via: "telegram",
       action: "phone.unauthorized",
-      detail: redact(String(incoming.text || incoming.callbackData || "").slice(0, 80)),
+      detail: redact(String(incoming.text || incoming.callbackData || "")).slice(0, 80), // redact BEFORE truncating
     });
     return NextResponse.json({ ok: true }); // unknown sender → no sensitive info, no reply
   }
@@ -38,12 +38,13 @@ export async function POST(req: Request) {
     "phone_last_command",
     JSON.stringify({
       ts: new Date().toISOString(),
-      text: redact(String(incoming.text || incoming.callbackData || "").slice(0, 160)),
+      text: redact(String(incoming.text || incoming.callbackData || "")).slice(0, 160), // redact BEFORE truncating
     }),
   );
   try {
     if (incoming.isCallback && incoming.callbackQueryId) await provider.answerCallback(incoming.callbackQueryId);
     const plan = routeCommand(provider, incoming);
+    recordAudit({ actor: incoming.chatId, via: "telegram", action: "phone.command", status: "allowed", actor_type: "phone", detail: redact(String(incoming.text || incoming.callbackData || "")).slice(0, 160) });
     const reply = await executeCommand(provider, plan, incoming.chatId);
     // log the (verified) phone exchange into the Team Chat so it's visible in Conversations (never blocks the reply)
     try {

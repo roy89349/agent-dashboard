@@ -2,7 +2,9 @@
 // run under `node --test`; node:sqlite already makes this unusable in a client bundle.
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+import { redact } from "./redact.ts";
 
 /**
  * Local, co-located storage via the BUILT-IN node:sqlite (no native dependency).
@@ -286,6 +288,34 @@ export function db(): DatabaseSync {
       created_at    TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_agent_feedback ON agent_feedback(agent_id, id DESC);
+    -- Rich, APPEND-ONLY audit trail. Every field that can carry free text/values is REDACTED on write (see
+    -- insertAuditEvent). The legacy 'audit' table above stays; recordAudit bridges every call into here too.
+    CREATE TABLE IF NOT EXISTS audit_events (
+      id                   TEXT PRIMARY KEY,
+      ts                   TEXT NOT NULL,
+      actor_type           TEXT,                 -- user|agent|system|phone|api
+      actor_id             TEXT,
+      actor_label          TEXT,
+      action               TEXT NOT NULL,
+      target_type          TEXT,
+      target_id            TEXT,
+      risk_level           TEXT,                 -- low|medium|high|critical
+      status               TEXT,                 -- allowed|denied|pending_approval|approved|rejected|failed
+      old_value_json       TEXT,                 -- REDACTED
+      new_value_json       TEXT,                 -- REDACTED
+      details_json         TEXT,                 -- REDACTED
+      redacted_summary     TEXT,                 -- REDACTED
+      related_work_item_id TEXT,
+      related_workflow_id  TEXT,
+      related_approval_id  TEXT,
+      related_pr           INTEGER,
+      related_issue        INTEGER,
+      source               TEXT,                 -- dashboard|phone|telegram|whatsapp|worker|supervisor|api
+      created_at           TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_events_created ON audit_events(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events(action, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_events_actor ON audit_events(actor_id, created_at DESC);
   `);
   // additive migrations for existing dbs (ADD COLUMN is idempotent-safe: errors if the column exists → ignore)
   for (const col of [
@@ -443,7 +473,77 @@ export interface AuditEntry {
   issue: number | null;
   detail: string | null;
 }
-/** Append one audit row. `detail` must already be redacted by the caller. */
+export type AuditActorType = "user" | "agent" | "system" | "phone" | "api";
+export type AuditStatus = "allowed" | "denied" | "pending_approval" | "approved" | "rejected" | "failed";
+export type AuditSource = "dashboard" | "phone" | "telegram" | "whatsapp" | "worker" | "supervisor" | "api";
+export interface AuditEventInput {
+  action: string;
+  actor_type?: AuditActorType | null;
+  actor_id?: string | null;
+  actor_label?: string | null;
+  target_type?: string | null;
+  target_id?: string | null;
+  risk_level?: string | null;
+  status?: AuditStatus | null;
+  old_value?: unknown; new_value?: unknown; details?: unknown; // redacted + truncated on write
+  summary?: string | null;
+  related_work_item_id?: string | null;
+  related_workflow_id?: string | null;
+  related_approval_id?: string | null;
+  related_pr?: number | null;
+  related_issue?: number | null;
+  source?: AuditSource | null;
+}
+// central redaction for every value that can carry free text — NEVER store a raw secret/token/diff.
+function redactValue(v: unknown, max = 4000): string | null {
+  if (v === null || v === undefined) return null;
+  return redact(typeof v === "string" ? v : safeStringify(v)).slice(0, max);
+}
+function safeStringify(v: unknown): string { try { return JSON.stringify(v); } catch { return String(v); } }
+
+/** Append ONE rich audit event (append-only). All value/detail fields are redacted here — the single write path. */
+export function insertAuditEvent(input: AuditEventInput): string {
+  const id = crypto.randomUUID();
+  const ts = new Date().toISOString();
+  db().prepare(
+    `INSERT INTO audit_events (id,ts,actor_type,actor_id,actor_label,action,target_type,target_id,risk_level,status,old_value_json,new_value_json,details_json,redacted_summary,related_work_item_id,related_workflow_id,related_approval_id,related_pr,related_issue,source,created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  ).run(
+    id, ts, input.actor_type ?? null, input.actor_id ? String(input.actor_id).slice(0, 120) : null,
+    input.actor_label ? redact(String(input.actor_label)).slice(0, 120) : null, String(input.action).slice(0, 120),
+    input.target_type ? String(input.target_type).slice(0, 60) : null, input.target_id ? String(input.target_id).slice(0, 120) : null,
+    input.risk_level ? String(input.risk_level).slice(0, 20) : null, input.status ?? null,
+    redactValue(input.old_value), redactValue(input.new_value), redactValue(input.details), input.summary != null ? redact(String(input.summary)).slice(0, 500) : null,
+    input.related_work_item_id ?? null, input.related_workflow_id ?? null, input.related_approval_id ?? null,
+    input.related_pr ?? null, input.related_issue ?? null, input.source ?? null, ts,
+  );
+  return id;
+}
+
+const AUDIT_SOURCES: AuditSource[] = ["dashboard", "phone", "telegram", "whatsapp", "worker", "supervisor", "api"];
+function inferActorType(via: string, actor: string): AuditActorType {
+  if (via === "dashboard") return "user";
+  if (via === "phone" || via === "telegram" || via === "whatsapp") return "phone";
+  if (via === "api") return "api";
+  if (via === "system" || !actor || actor === "system") return "system";
+  return "agent";
+}
+// infer a status from the action's TRAILING verb (after the last '.') — never a raw substring, so operational
+// actions like 'work_item.block' or 'plan.approve_skipped' aren't mislabeled as denied/approved. The security-
+// critical direction stays conservative: only clear denials map to 'denied'. Callers pass an explicit status to override.
+function inferStatus(action: string): AuditStatus {
+  const verb = (action.toLowerCase().split(".").pop() ?? "");
+  if (verb.includes("skipped")) return "allowed";                               // no-op / stale, not a real approve/reject
+  if (verb.includes("unauthorized") || verb.includes("denied")) return "denied";
+  if (verb.includes("approval_required")) return "pending_approval";
+  if (verb.includes("reject")) return "rejected";
+  if (verb.includes("fail")) return "failed";
+  if (verb.includes("approve")) return "approved";
+  return "allowed";
+}
+
+/** Append one legacy audit row AND bridge it into the rich audit_events log. `detail` should already be redacted;
+ *  insertAuditEvent redacts again defensively. Optional rich fields override the inferred defaults. */
 export function recordAudit(e: {
   actor?: string | null;
   via?: string | null;
@@ -452,6 +552,17 @@ export function recordAudit(e: {
   approval_id?: string | null;
   issue?: number | null;
   detail?: string | null;
+  // optional rich fields (used by enriched call sites; safe to omit)
+  status?: AuditStatus | null;
+  risk_level?: string | null;
+  actor_type?: AuditActorType | null;
+  target_type?: string | null;
+  target_id?: string | null;
+  related_work_item_id?: string | null;
+  related_workflow_id?: string | null;
+  related_pr?: number | null;
+  old_value?: unknown;
+  new_value?: unknown;
 }): void {
   db()
     .prepare(
@@ -467,6 +578,29 @@ export function recordAudit(e: {
       e.issue ?? null,
       e.detail ?? null,
     );
+  // bridge into the rich audit log — best-effort, never breaks the legacy write
+  try {
+    const via = (e.via ?? "system").toLowerCase();
+    insertAuditEvent({
+      action: e.action,
+      actor_type: e.actor_type ?? inferActorType(via, e.actor ?? ""),
+      actor_id: e.actor ?? null,
+      actor_label: e.actor ?? null,
+      target_type: e.target_type ?? (e.action.includes(".") ? e.action.split(".")[0] : null),
+      target_id: e.target_id ?? null,
+      risk_level: e.risk_level ?? null,
+      status: e.status ?? inferStatus(e.action),
+      details: e.detail ?? null,
+      summary: e.detail ?? null,
+      old_value: e.old_value, new_value: e.new_value,
+      related_approval_id: e.approval_id ?? null,
+      related_work_item_id: e.related_work_item_id ?? null,
+      related_workflow_id: e.related_workflow_id ?? null,
+      related_pr: e.related_pr ?? null,
+      related_issue: e.issue ?? null,
+      source: (AUDIT_SOURCES as string[]).includes(via) ? (via as AuditSource) : null,
+    });
+  } catch { /* audit_events bridge is best-effort */ }
 }
 export function listAudit(limit = 100): (AuditEntry & { id: number })[] {
   const n = Math.min(500, Math.max(1, Math.trunc(limit)));

@@ -172,6 +172,11 @@ export function createApproval(input: CreateApprovalInput): { approval: Approval
     approval_id: id,
     issue: input.issue ?? null,
     detail: redact(input.summary).slice(0, 200),
+    status: "pending_approval",
+    risk_level: input.risk ?? null,
+    target_type: "approval",
+    related_pr: input.pr ?? null,
+    related_work_item_id: input.work_item_id ?? null,
   });
   return { approval: rawApproval(id)!, token };
 }
@@ -221,6 +226,11 @@ export function decideApproval(id: string, action: "approve" | "reject", opts: D
     approval_id: id,
     issue: a.issue,
     detail: action,
+    status: want === "approved" ? "approved" : "rejected",
+    risk_level: a.risk ?? null,
+    target_type: "approval",
+    related_pr: a.pr ?? null,
+    related_work_item_id: a.work_item_id ?? null,
   });
   return getApproval(id) ?? a;
 }

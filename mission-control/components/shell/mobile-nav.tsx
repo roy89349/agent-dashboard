@@ -8,7 +8,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import {
   LayoutDashboard, Inbox, Radio, Users, MoreHorizontal,
   MessagesSquare, BookOpen, Settings, Smartphone, ListTodo,
-  Play, Pause, Square, X, Network, Boxes, Layers, GitBranch, Split, Megaphone, BarChart3, Gauge, Trophy, Wand2,
+  Play, Pause, Square, X, Network, Boxes, Layers, GitBranch, Split, Megaphone, BarChart3, Gauge, Trophy, Wand2, ScrollText,
 } from "lucide-react";
 import type { FleetStatus } from "@/lib/types";
 
@@ -34,6 +34,7 @@ const MORE = [
   { href: "/kpis", label: "KPIs", icon: BarChart3, hint: "productivity · quality · speed" },
   { href: "/costs", label: "Costs", icon: Gauge, hint: "usage estimates · budgets" },
   { href: "/agent-performance", label: "Performance", icon: Trophy, hint: "agent leaderboard" },
+  { href: "/audit", label: "Audit Log", icon: ScrollText, hint: "traceable action trail" },
   { href: "/config", label: "Config", icon: Settings, hint: "limits & integrations" },
   { href: "/config#phone", label: "Phone Command setup", icon: Smartphone, hint: "Telegram / WhatsApp" },
 ];

@@ -499,7 +499,7 @@ export async function enforce(action: Action, c: PermissionContext, opts: Enforc
   const detail = (s: string) => redact(s).slice(0, 200);
 
   if (decision.effect === "deny") {
-    recordAudit({ ...auditBase, action: "permission.denied", detail: detail(decision.reason) });
+    recordAudit({ ...auditBase, action: "permission.denied", detail: detail(decision.reason), status: "denied", risk_level: decision.risk });
     throw new PermissionError(decision);
   }
 
@@ -532,12 +532,12 @@ export async function enforce(action: Action, c: PermissionContext, opts: Enforc
         }
       }
     }
-    recordAudit({ ...auditBase, action: "permission.approval_required", approval_id: approvalId, detail: detail(`${decision.reason} → ${kind}`) });
+    recordAudit({ ...auditBase, action: "permission.approval_required", approval_id: approvalId, detail: detail(`${decision.reason} → ${kind}`), status: "pending_approval", risk_level: decision.risk });
     return { allowed: false, decision, approvalId };
   }
 
   // allow — risky allows are audited as approved-risky; trivial low-risk reads are skipped to reduce noise
   if (!(action.type === "read" && decision.risk === "low"))
-    recordAudit({ ...auditBase, action: rank(decision.risk) >= rank("high") ? "permission.approved_risky" : "permission.allowed", detail: detail(`${decision.reason}; risk=${decision.risk}`) });
+    recordAudit({ ...auditBase, action: rank(decision.risk) >= rank("high") ? "permission.approved_risky" : "permission.allowed", detail: detail(`${decision.reason}; risk=${decision.risk}`), status: "allowed", risk_level: decision.risk });
   return { allowed: true, decision };
 }
