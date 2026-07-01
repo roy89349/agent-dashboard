@@ -27,7 +27,10 @@ tg_send() { # $1 = text; never fails the script
 }
 
 TOKEN="$(getenv MC_WATCHDOG_TOKEN)"
-if curl -fsS -m 20 -X POST -H "X-Watchdog-Token: ${TOKEN}" "$URL" >/dev/null 2>&1; then
+# Require an explicit HTTP 200 — `curl -f` treats a 3xx login-redirect as success, which would
+# silently disable this layer if the app ever gates the route behind the session proxy again.
+HTTP_CODE=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST -H "X-Watchdog-Token: ${TOKEN}" "$URL" 2>/dev/null || echo 000)
+if [ "$HTTP_CODE" = "200" ]; then
   # Dashboard alive → the app handled fleet health itself. Clear a previous dashboard-down mark.
   if [ -f "$STATE" ]; then
     rm -f "$STATE"
