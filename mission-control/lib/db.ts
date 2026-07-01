@@ -139,6 +139,61 @@ export function db(): DatabaseSync {
     );
     CREATE INDEX IF NOT EXISTS idx_agent_messages_wi ON agent_messages(work_item_id, id);
     CREATE INDEX IF NOT EXISTS idx_agent_messages_thread ON agent_messages(thread_id, id);
+    -- workflow engine: templates → workflows → steps → events. Visual, traceable multi-role pipelines over
+    -- the existing work_items + approvals. Orchestration + data only (the runner executes steps later).
+    CREATE TABLE IF NOT EXISTS workflow_templates (
+      id          TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      description TEXT,
+      category    TEXT,
+      steps_json  TEXT NOT NULL,                     -- [{name,role,required_skills[],approval_required,output_expected,max_attempts}]
+      enabled     INTEGER NOT NULL DEFAULT 1,
+      created_at  TEXT NOT NULL,
+      updated_at  TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS workflows (
+      id              TEXT PRIMARY KEY,
+      template_id     TEXT,
+      work_item_id    TEXT,
+      team_id         TEXT,
+      title           TEXT NOT NULL,
+      status          TEXT NOT NULL DEFAULT 'queued', -- queued|running|blocked|waiting_user|failed|done|cancelled
+      current_step_id TEXT,
+      created_by      TEXT,
+      created_at      TEXT NOT NULL,
+      updated_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_workflows_status ON workflows(status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_workflows_wi ON workflows(work_item_id);
+    CREATE TABLE IF NOT EXISTS workflow_steps (
+      id                   TEXT PRIMARY KEY,
+      workflow_id          TEXT NOT NULL,
+      step_order           INTEGER NOT NULL,
+      name                 TEXT NOT NULL,
+      assigned_agent_id    TEXT,
+      assigned_role        TEXT,
+      required_skills_json TEXT,                      -- JSON string[] of skill hints
+      approval_required    INTEGER NOT NULL DEFAULT 0,
+      status               TEXT NOT NULL DEFAULT 'queued', -- queued|running|blocked|waiting_user|review|failed|done|skipped
+      max_attempts         INTEGER NOT NULL DEFAULT 1,
+      attempt_count        INTEGER NOT NULL DEFAULT 0,
+      output_expected      TEXT,
+      output_json          TEXT,                      -- REDACTED before insert
+      approval_id          TEXT,                      -- the durable approval raised for this step (if any)
+      started_at           TEXT,
+      completed_at         TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_workflow_steps_wf ON workflow_steps(workflow_id, step_order);
+    CREATE TABLE IF NOT EXISTS workflow_events (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      workflow_id  TEXT NOT NULL,
+      step_id      TEXT,
+      type         TEXT NOT NULL,
+      message      TEXT,
+      payload_json TEXT,                              -- REDACTED before insert
+      created_at   TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_workflow_events_wf ON workflow_events(workflow_id, id);
   `);
   // additive migrations for existing dbs (ADD COLUMN is idempotent-safe: errors if the column exists → ignore)
   for (const col of [

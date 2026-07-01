@@ -18,6 +18,7 @@ const KIND_LABELS: Record<ApprovalKind, string> = {
   plan_signoff: "Plan sign-off",
   risky_action: "Risky action",
   prompt_confirm: "Make a task?",
+  workflow_step: "Workflow step",
 };
 export function kindLabel(kind: string): string {
   return KIND_LABELS[kind as ApprovalKind] ?? kind.replace(/_/g, " ");

@@ -4,6 +4,7 @@ import { verifySession } from "@/lib/session";
 import { decideApproval, getApproval, publicApproval, approvalErrorStatus } from "@/lib/approvals";
 import { runApprovalAction } from "@/lib/phone/actions";
 import { handlePlanRejection } from "@/lib/plans";
+import { handleWorkflowRejection } from "@/lib/workflows";
 import { recordAudit } from "@/lib/db";
 import { appendCommand } from "@/lib/fleet";
 
@@ -62,7 +63,7 @@ export async function POST(req: Request) {
         appendCommand({ cmd: "cancel", issue: decided.issue });
         detail = `paused and cancelled #${decided.issue}`;
       }
-      if (pre?.status === "pending") handlePlanRejection(decided, "dashboard"); // a paused plan → block the work item + feedback
+      if (pre?.status === "pending") { handlePlanRejection(decided, "dashboard"); handleWorkflowRejection(decided, "dashboard"); } // a paused plan/step → block + feedback
       return NextResponse.json({ approval: publicApproval(decided), action: { ok: true, detail } });
     }
 
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
         : { via: "api", by: "token", token: b.token, reason: b.reason },
     );
     const actionResult = b.action === "approve" && firstDecision ? await runApprovalAction(decided) : null;
-    if (b.action === "reject" && firstDecision) handlePlanRejection(decided, "dashboard"); // a rejected plan → block + feedback
+    if (b.action === "reject" && firstDecision) { handlePlanRejection(decided, "dashboard"); handleWorkflowRejection(decided, "dashboard"); } // rejected plan/step → block + feedback
     return NextResponse.json({ approval: publicApproval(decided), action: actionResult });
   } catch (e) {
     return NextResponse.json(

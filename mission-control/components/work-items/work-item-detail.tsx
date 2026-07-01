@@ -11,6 +11,7 @@ import { RiskBadge } from "@/components/skills/risk-badge";
 import { StateBadge, PriorityBadge, ModeBadge } from "./badges";
 import { HandoffTimeline } from "./handoff-timeline";
 import { PlanSection } from "./plan-section";
+import { WorkflowLauncher } from "@/components/workflows/workflow-launcher";
 import type { WorkItem, WorkItemState, WorkItemMode } from "@/lib/work-items";
 import type { AgentMessageType } from "@/lib/agent-messages";
 
@@ -132,6 +133,9 @@ export function WorkItemDetailDrawer({
 
               {/* plan (compose in plan-only, or read the submitted plan) */}
               <PlanSection wi={wi} submitPlan={submitPlan} onDone={refresh} />
+
+              {/* start a multi-role workflow for this task (or its approved plan) */}
+              <WorkflowLauncher workItemId={wi.id} title={wi.title} />
 
               {/* parent / children */}
               {(wi.parent_task_id || (detail?.children.length ?? 0) > 0) && (

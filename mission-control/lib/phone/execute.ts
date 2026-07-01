@@ -18,6 +18,7 @@ import {
 import { runApprovalAction } from "./actions";
 import { enforce, permissionStatusOf } from "../permissions";
 import { handlePlanRejection } from "../plans";
+import { handleWorkflowRejection } from "../workflows";
 
 export interface Reply {
   text: string;
@@ -247,11 +248,11 @@ async function decideReply(
     if (action === "pause") {
       const paused = decideApproval(id, "reject", { via: "telegram", by: actor, trusted: true, reason: "paused via phone" });
       if (a.issue) appendCommand({ cmd: "cancel", issue: a.issue });
-      if (first) handlePlanRejection(paused, actor); // a paused plan → block the work item + feedback
+      if (first) { handlePlanRejection(paused, actor); handleWorkflowRejection(paused, actor); } // a paused plan/step → block + feedback
       return { text: ok(`Paused${a.issue ? ` #${esc(a.issue)}` : ""} and dismissed the approval.`) };
     }
     const decided = decideApproval(id, action, { via: "telegram", by: actor, trusted: true });
-    if (action === "reject" && first) handlePlanRejection(decided, actor); // a rejected plan → block + feedback
+    if (action === "reject" && first) { handlePlanRejection(decided, actor); handleWorkflowRejection(decided, actor); } // rejected plan/step → block + feedback
     if (action === "approve") {
       if (!first) return { text: warn("Already decided.") }; // idempotent re-approve: never re-run the action
       const res = await runApprovalAction(decided);

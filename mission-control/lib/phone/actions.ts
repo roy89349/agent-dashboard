@@ -3,6 +3,7 @@
 import { readFleet, writeFleet, appendCommand } from "../fleet";
 import { mergePull, createAgentTask, requeueIssue } from "../github";
 import { approvePlan } from "../plans";
+import { advanceWorkflowStep } from "../workflows";
 import type { Approval } from "../approvals";
 
 export async function runApprovalAction(a: Approval): Promise<{ ok: boolean; detail: string }> {
@@ -61,6 +62,14 @@ export async function runApprovalAction(a: Approval): Promise<{ ok: boolean; det
         if (!wi) return { ok: false, detail: "no work item on plan approval" };
         approvePlan(wi, a.decided_by ?? "approval");
         return { ok: true, detail: "plan approved → build_after_approval" };
+      }
+      case "advance_workflow": {
+        const wfId = String(action.workflow_id ?? "");
+        const stepId = String(action.step_id ?? "");
+        if (!wfId || !stepId) return { ok: false, detail: "no workflow/step on step approval" };
+        // step-coupled + stale-safe: only the gated step advances, and only because its approval was granted
+        const d = advanceWorkflowStep(wfId, stepId, a.decided_by ?? "approval");
+        return { ok: true, detail: `workflow step approved → ${d.workflow.status}` };
       }
       case "noop":
       case "ack":
