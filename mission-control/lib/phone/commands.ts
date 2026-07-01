@@ -12,6 +12,7 @@ export type CommandPlan =
   | { kind: "fleet_mode"; mode: "running" | "paused" | "stopped"; needsApproval: boolean }
   | { kind: "breaker_reset" }
   | { kind: "create_task"; title: string; role: string | null }
+  | { kind: "decompose"; text: string }
   | { kind: "free_text"; text: string }
   | { kind: "continue"; issue: number }
   | { kind: "cancel"; issue: number }
@@ -76,6 +77,10 @@ export function routeCommand(provider: PhoneProvider, incoming: IncomingMessage)
     case "task":
     case "goal":
       return args ? { kind: "create_task", title: args, role: null } : { kind: "help" };
+    case "plan":
+    case "decompose":
+      // a BIG task → the Manager proposes a decomposition (you approve it before anything is created)
+      return args ? { kind: "decompose", text: args } : { kind: "help" };
     case "ask":
       return args ? { kind: "free_text", text: args } : { kind: "help" };
     case "assign": {
@@ -111,6 +116,7 @@ export const HELP_TEXT = [
   "Status:  /status  /fleet  /agents  /tasks  /prs  /decisions",
   "Control: /pause  /resume  /stop  /breaker_reset",
   "Tasks:   /task <text>   /prompt <text>   /goal <text>",
+  "Plan:    /plan <big task>  → Manager splits it into subtasks (you approve first)",
   "Roles:   /assign <role> <text>   /frontend <text>   /backend <text>   /qa <text>   /security <text>   /manager <text>",
   "Work:    /continue <issue>   /cancel <issue>   /priority <issue> high|normal|low",
   "",

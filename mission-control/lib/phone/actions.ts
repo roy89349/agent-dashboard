@@ -4,6 +4,7 @@ import { readFleet, writeFleet, appendCommand } from "../fleet";
 import { mergePull, createAgentTask, requeueIssue } from "../github";
 import { approvePlan } from "../plans";
 import { advanceWorkflowStep } from "../workflows";
+import { approveDecomposition } from "../manager";
 import type { Approval } from "../approvals";
 
 export async function runApprovalAction(a: Approval): Promise<{ ok: boolean; detail: string }> {
@@ -70,6 +71,12 @@ export async function runApprovalAction(a: Approval): Promise<{ ok: boolean; det
         // step-coupled + stale-safe: only the gated step advances, and only because its approval was granted
         const d = advanceWorkflowStep(wfId, stepId, a.decided_by ?? "approval");
         return { ok: true, detail: `workflow step approved → ${d.workflow.status}` };
+      }
+      case "approve_decomposition": {
+        const mp = String(action.manager_plan_id ?? "");
+        if (!mp) return { ok: false, detail: "no manager plan on decomposition approval" };
+        const r = await approveDecomposition(mp, a.decided_by ?? "approval"); // materialise subtasks + workflow
+        return { ok: true, detail: `decomposed into ${r.children.length} subtasks` };
       }
       case "noop":
       case "ack":

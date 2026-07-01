@@ -194,6 +194,25 @@ export function db(): DatabaseSync {
       created_at   TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_workflow_events_wf ON workflow_events(workflow_id, id);
+    -- manager / decomposer: a big task → a decomposition PLAN (subtasks + roles + deps + risks + a workflow
+    -- proposal) that must be plan_signoff-approved before it materializes into child work_items (+ optionally
+    -- agent-ready GitHub issues) and a workflow. One proposed plan per parent work item at a time.
+    CREATE TABLE IF NOT EXISTS manager_plans (
+      id            TEXT PRIMARY KEY,
+      work_item_id  TEXT NOT NULL,                     -- the PARENT work item being decomposed
+      source        TEXT,                              -- github_issue|phone|chat|dashboard|agent
+      source_ref    TEXT,
+      status        TEXT NOT NULL DEFAULT 'proposed',  -- proposed|approved|rejected|materialized
+      plan_json     TEXT NOT NULL,                     -- the DecompositionPlan (REDACTED before insert)
+      depth         INTEGER NOT NULL DEFAULT 0,        -- decomposition depth of the parent (for max_depth)
+      approval_id   TEXT,
+      workflow_id   TEXT,                              -- the workflow started on approval
+      created_by    TEXT,
+      created_at    TEXT NOT NULL,
+      updated_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_manager_plans_wi ON manager_plans(work_item_id);
+    CREATE INDEX IF NOT EXISTS idx_manager_plans_status ON manager_plans(status, updated_at DESC);
   `);
   // additive migrations for existing dbs (ADD COLUMN is idempotent-safe: errors if the column exists → ignore)
   for (const col of [

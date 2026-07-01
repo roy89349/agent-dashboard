@@ -19,6 +19,7 @@ import { runApprovalAction } from "./actions";
 import { enforce, permissionStatusOf } from "../permissions";
 import { handlePlanRejection } from "../plans";
 import { handleWorkflowRejection } from "../workflows";
+import { handleDecompositionRejection, proposeDecomposition } from "../manager";
 
 export interface Reply {
   text: string;
@@ -27,7 +28,9 @@ export interface Reply {
 
 // Read-only / approval-resolution verbs skip the permission layer; EVERY other (mutating) verb is enforced
 // (audited + approval-gated) below — fail-closed, so a new mutating verb can't silently bypass.
-const PHONE_READONLY = new Set(["unauthorized", "empty", "help", "unknown", "status", "decision", "new_task_button", "free_text"]);
+// these produce no fleet mutation — they only render or park a pending approval (which is the real gate).
+// `decompose` only PROPOSES a plan (a plan_signoff approval); nothing is created until you approve it.
+const PHONE_READONLY = new Set(["unauthorized", "empty", "help", "unknown", "status", "decision", "new_task_button", "free_text", "decompose"]);
 
 function phoneSummary(plan: CommandPlan): string {
   switch (plan.kind) {
@@ -189,6 +192,18 @@ export async function executeCommand(provider: PhoneProvider, plan: CommandPlan,
       }
     }
 
+    case "decompose": {
+      // the Manager proposes a decomposition (seeded from a default pipeline) and raises a plan_signoff
+      // approval — the phone gets an "approve this plan?" card automatically. Nothing is built until approved.
+      try {
+        const { workItem, managerPlan } = proposeDecomposition({ title: plan.text, source: "phone", seed_template_id: "tpl_build_feature", created_by: actor });
+        audit("manager.propose", `wi=${workItem.id} plan=${managerPlan.id}`);
+        return { text: info("🗂 Plan proposed", [`<blockquote>${esc(plan.text)}</blockquote>`, "", `Broken into <b>${managerPlan.plan.subtasks.length}</b> subtasks — approve the plan I just sent to create the tasks + start the workflow.`]) };
+      } catch (e) {
+        return { text: err(`Could not plan: ${e instanceof Error ? e.message : "error"}`) };
+      }
+    }
+
     case "free_text": {
       // Treat as a message to the Manager: park it as a pending prompt_confirm approval + offer buttons.
       const { approval } = createApproval({
@@ -248,11 +263,11 @@ async function decideReply(
     if (action === "pause") {
       const paused = decideApproval(id, "reject", { via: "telegram", by: actor, trusted: true, reason: "paused via phone" });
       if (a.issue) appendCommand({ cmd: "cancel", issue: a.issue });
-      if (first) { handlePlanRejection(paused, actor); handleWorkflowRejection(paused, actor); } // a paused plan/step → block + feedback
+      if (first) { handlePlanRejection(paused, actor); handleWorkflowRejection(paused, actor); handleDecompositionRejection(paused, actor); } // a paused plan/step/decomposition → block + feedback
       return { text: ok(`Paused${a.issue ? ` #${esc(a.issue)}` : ""} and dismissed the approval.`) };
     }
     const decided = decideApproval(id, action, { via: "telegram", by: actor, trusted: true });
-    if (action === "reject" && first) { handlePlanRejection(decided, actor); handleWorkflowRejection(decided, actor); } // rejected plan/step → block + feedback
+    if (action === "reject" && first) { handlePlanRejection(decided, actor); handleWorkflowRejection(decided, actor); handleDecompositionRejection(decided, actor); } // rejected plan/step/decomposition → block + feedback
     if (action === "approve") {
       if (!first) return { text: warn("Already decided.") }; // idempotent re-approve: never re-run the action
       const res = await runApprovalAction(decided);

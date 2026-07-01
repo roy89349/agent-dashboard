@@ -137,9 +137,10 @@ export function rejectPlan(workItemId: string, reason?: string, actor?: string):
   return next;
 }
 
-/** Called from the approval-decide paths on REJECT: if it was a plan approval, block the work item + feedback. */
-export function handlePlanRejection(approval: Pick<Approval, "kind" | "work_item_id" | "reason">, actor?: string): void {
-  if (approval.kind === "plan_signoff" && approval.work_item_id) {
-    try { rejectPlan(approval.work_item_id, approval.reason ?? "Plan rejected", actor); } catch { /* never block the decide flow */ }
-  }
+/** Called from the approval-decide paths on REJECT: if it was a plan approval, block the work item + feedback.
+ *  A Manager DECOMPOSITION also uses kind plan_signoff — skip it here (handleDecompositionRejection owns it). */
+export function handlePlanRejection(approval: Pick<Approval, "kind" | "work_item_id" | "reason" | "action_json">, actor?: string): void {
+  if (approval.kind !== "plan_signoff" || !approval.work_item_id) return;
+  try { if (approval.action_json && JSON.parse(approval.action_json)?.type === "approve_decomposition") return; } catch { /* not JSON → treat as a build plan */ }
+  try { rejectPlan(approval.work_item_id, approval.reason ?? "Plan rejected", actor); } catch { /* never block the decide flow */ }
 }
