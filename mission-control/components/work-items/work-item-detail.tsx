@@ -12,6 +12,8 @@ import { StateBadge, PriorityBadge, ModeBadge } from "./badges";
 import { HandoffTimeline } from "./handoff-timeline";
 import { PlanSection } from "./plan-section";
 import { WorkflowLauncher } from "@/components/workflows/workflow-launcher";
+import { AgentMemoryHints } from "@/components/agents/agent-memory-hints";
+import { FeedbackButton } from "@/components/agents/feedback-button";
 import type { WorkItem, WorkItemState, WorkItemMode } from "@/lib/work-items";
 import type { AgentMessageType } from "@/lib/agent-messages";
 
@@ -95,6 +97,14 @@ export function WorkItemDetailDrawer({
               </div>
               <p className="text-[15px] font-medium leading-snug text-white">{wi.title}</p>
               {wi.description && <p className="whitespace-pre-wrap text-sm text-white/60">{wi.description}</p>}
+
+              {/* the assigned agent's memory (constraints/preferences) + a way to train it from the task */}
+              {wi.assigned_agent_id && (
+                <div className="space-y-2">
+                  <AgentMemoryHints agentId={wi.assigned_agent_id} />
+                  <div className="flex justify-end"><FeedbackButton agentId={wi.assigned_agent_id} workItemId={wi.id} label="Feedback to agent" /></div>
+                </div>
+              )}
 
               {/* assignment + meta */}
               <div className="rounded-xl border border-white/10 bg-black/20 px-3.5">

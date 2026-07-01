@@ -2,6 +2,7 @@
 // Read-only view of the agent registry (the team the fleet routes work to). Editing/CRUD is a later
 // step; this makes the roster visible + gives the mobile nav a real "Agents" destination.
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Users, Bot, ShieldCheck, Wrench, Tag, Eye, RefreshCw, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -71,9 +72,10 @@ export default function AgentsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((a) => (
-            <article
+            <Link
               key={a.id}
-              className={`flex flex-col rounded-2xl border p-4 ${
+              href={`/agents/${a.id}`}
+              className={`flex flex-col rounded-2xl border p-4 transition-colors hover:border-white/25 ${
                 a.enabled ? "border-white/10 bg-white/[0.03]" : "border-white/5 bg-white/[0.015] opacity-60"
               }`}
             >
@@ -125,7 +127,7 @@ export default function AgentsPage() {
                   </p>
                 )}
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       )}

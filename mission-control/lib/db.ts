@@ -251,6 +251,41 @@ export function db(): DatabaseSync {
     );
     CREATE INDEX IF NOT EXISTS idx_knowledge_type ON knowledge_items(type, updated_at DESC);
     CREATE UNIQUE INDEX IF NOT EXISTS uq_knowledge_source ON knowledge_items(source_path) WHERE source_path IS NOT NULL;
+    -- VISIBLE agent memory (no black box): strengths/weaknesses/rules/warnings/preferences/lessons per agent,
+    -- editable + scoped by agent/team. Feedback the user gives becomes memory here. content is REDACTED.
+    CREATE TABLE IF NOT EXISTS agent_memory (
+      id          TEXT PRIMARY KEY,
+      agent_id    TEXT NOT NULL,
+      team_id     TEXT,
+      project_id  TEXT,
+      type        TEXT NOT NULL,                    -- preference|rule|lesson|warning|strength|weakness|feedback
+      title       TEXT NOT NULL,
+      content     TEXT,                             -- REDACTED
+      source_type TEXT,                             -- manual|task|pr|decision|workflow|summary
+      source_ref  TEXT,
+      enabled     INTEGER NOT NULL DEFAULT 1,
+      archived    INTEGER NOT NULL DEFAULT 0,
+      created_by  TEXT,
+      created_at  TEXT NOT NULL,
+      updated_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_memory ON agent_memory(agent_id, archived, enabled);
+    -- the raw feedback signal (a rating/action on a task/PR/decision/workflow) — each also mints a memory item.
+    CREATE TABLE IF NOT EXISTS agent_feedback (
+      id            TEXT PRIMARY KEY,
+      agent_id      TEXT NOT NULL,
+      work_item_id  TEXT,
+      workflow_id   TEXT,
+      decision_id   TEXT,
+      pr            INTEGER,
+      rating        INTEGER,                        -- -1 / +1 (or a 1..5 scale)
+      feedback_type TEXT NOT NULL,                  -- do_more|never|ask_less|ask_always|always_tests|…
+      comment       TEXT,                           -- REDACTED
+      memory_id     TEXT,                           -- the memory item minted from this feedback
+      created_by    TEXT,
+      created_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_feedback ON agent_feedback(agent_id, id DESC);
   `);
   // additive migrations for existing dbs (ADD COLUMN is idempotent-safe: errors if the column exists → ignore)
   for (const col of [
