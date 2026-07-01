@@ -66,5 +66,11 @@ export function useWorkItems() {
     return r.ok;
   }, []);
 
-  return { items, agents, teams, loaded, load, agentName, teamName, createItem, patchItem, getDetail, postMessage, resolveMessage };
+  const submitPlan = useCallback(async (id: string, plan: Record<string, unknown>): Promise<boolean> => {
+    const r = await fetch(`/api/work-items/${id}/plan`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ plan }) });
+    if (r.ok) await load();
+    return r.ok;
+  }, [load]);
+
+  return { items, agents, teams, loaded, load, agentName, teamName, createItem, patchItem, getDetail, postMessage, resolveMessage, submitPlan };
 }

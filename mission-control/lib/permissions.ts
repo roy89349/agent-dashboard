@@ -7,6 +7,7 @@
 import { agentById } from "./agents.ts";
 import { teamById, teamForAgent } from "./teams.ts";
 import { skillById } from "./skills.ts";
+import { getWorkItem, listWorkItems } from "./work-items.ts";
 import { createApproval, listPendingApprovals, type CreateApprovalInput, type ApprovalKind } from "./approvals.ts";
 import { recordAudit } from "./db.ts";
 import { redact } from "./redact.ts";
@@ -208,12 +209,15 @@ export interface ResolvedContext {
   trusted: boolean; // an authenticated human/operator session (NEVER true for an agent)
   confirmed: boolean; // the route's own confirm-valve already passed
   checksPassed?: boolean;
+  mode?: string | null; // the work item's mode (plan_only | build_after_approval | autonomous_within_limits)
   via?: string;
   actor?: string;
 }
 export interface PermissionContext {
   agentId?: string | null;
   teamId?: string | null;
+  workItemId?: string | null; // resolves the work item's mode (plan-only enforcement)
+  mode?: string | null; // explicit mode (tests / pre-resolved callers)
   initiator?: "agent" | "human" | "phone";
   trusted?: boolean;
   confirmed?: boolean;
@@ -236,6 +240,15 @@ export function grantedSkills(agent: Agent): Skill[] {
   return out;
 }
 
+// A plan_only work item stops constraining its agent once it is closed out (done/cancelled/failed).
+const PLAN_ONLY_TERMINAL = new Set(["done", "cancelled", "failed"]);
+/** Fail-closed: does this agent still hold an OPEN plan_only work item? (any lookup error ⇒ assume yes). */
+function agentHasActivePlanOnly(agentId: string): boolean {
+  try {
+    return listWorkItems({ assigned_agent_id: agentId }).some((w) => w.mode === "plan_only" && !PLAN_ONLY_TERMINAL.has(w.state));
+  } catch { return true; }
+}
+
 export function resolveContext(c: PermissionContext): ResolvedContext {
   if (c.snapshot) return c.snapshot;
   const agent = c.agentId ? agentById(c.agentId) : null;
@@ -253,11 +266,29 @@ export function resolveContext(c: PermissionContext): ResolvedContext {
   const initiator = c.initiator ?? (agent ? "agent" : "human");
   // SECURITY: an agent initiator can NEVER carry trust (no agent-supplied human ceiling bypass)
   const trusted = initiator === "agent" ? false : c.trusted ?? false;
+  // The work item's MODE drives plan-only enforcement. SECURITY: an AGENT must not be able to escape plan-only
+  // by omitting or swapping workItemId — the mode is bound to the agent's OWN assignment, resolved server-side
+  // and fail-closed. Explicit c.mode wins (test snapshots / callers that already resolved it). For an agent, a
+  // caller-supplied workItemId counts only if the agent actually OWNS that item; and as a fail-closed FLOOR, an
+  // agent holding ANY still-open plan_only assignment is plan-gated no matter what id it supplied. A non-agent
+  // caller just reads the named item's mode (humans aren't plan-gated anyway).
+  let mode = c.mode ?? null;
+  if (mode == null && agent) {
+    const named = c.workItemId ? getWorkItem(c.workItemId) : null;
+    const owned = named && named.assigned_agent_id === agent.id ? named : null;
+    mode = owned?.mode ?? null;
+    if (mode !== "plan_only" && agentHasActivePlanOnly(agent.id)) mode = "plan_only";
+  } else if (mode == null) {
+    mode = c.workItemId ? getWorkItem(c.workItemId)?.mode ?? null : null;
+  }
   return {
     agent, team, skills, gates: c.env ?? readGates(),
-    initiator, trusted, confirmed: c.confirmed ?? false, checksPassed: c.checksPassed, via: c.via, actor: c.actor,
+    initiator, trusted, confirmed: c.confirmed ?? false, checksPassed: c.checksPassed, mode, via: c.via, actor: c.actor,
   };
 }
+
+// actions an agent may NOT take while the work item is in plan_only mode (read/plan/ask stay allowed)
+const PLAN_ONLY_BLOCKED = new Set<ActionType>(["modify_code", "create_pr", "merge", "deploy", "change_env", "change_database", "add_dependency", "phone_command"]);
 
 /** Effective autonomy ceiling after env + team clamps. Fail-closed (disabled/no agent ⇒ 0). */
 export function effectiveLevel(ctx: ResolvedContext): AutonomyLevel {
@@ -330,6 +361,11 @@ export function evaluateAction(action: Action, c: PermissionContext): Decision {
 
   // 1. totality
   if (!(action.type in REQUIRED_LEVEL)) return deny("unknown action type");
+
+  // 1b. PLAN-ONLY MODE — a hard, server-side gate: an AGENT on a plan_only work item may read/plan/ask, but
+  //     NOT mutate anything (this cannot be approved away; the plan must be approved → build_after_approval first).
+  if (!isHuman && ctx.mode === "plan_only" && PLAN_ONLY_BLOCKED.has(action.type))
+    return deny("plan-only mode: read/plan only — no changes until the plan is approved");
 
   // 2. HARD ENV GATES (apply to everyone; cannot be approved away)
   if ((action.type === "use_opus" && (action.scope ?? "global") === "global") || categories.includes("force_opus")) {

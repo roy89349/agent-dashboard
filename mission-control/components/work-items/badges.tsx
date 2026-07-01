@@ -1,5 +1,11 @@
 import { Badge, type Tone } from "@/components/ui/badge";
-import type { WorkItemState, WorkItemPriority } from "@/lib/work-items";
+import type { WorkItemState, WorkItemPriority, WorkItemMode } from "@/lib/work-items";
+
+const MODE_TONE: Record<WorkItemMode, Tone> = { plan_only: "amber", build_after_approval: "indigo", autonomous_within_limits: "emerald" };
+const MODE_LABEL: Record<WorkItemMode, string> = { plan_only: "Plan-only", build_after_approval: "Build after approval", autonomous_within_limits: "Autonomous" };
+export function ModeBadge({ mode }: { mode: WorkItemMode }) {
+  return <Badge tone={MODE_TONE[mode] ?? "slate"}>{MODE_LABEL[mode] ?? mode}</Badge>;
+}
 
 export const STATE_TONE: Record<WorkItemState, Tone> = {
   queued: "slate", running: "indigo", blocked: "red", waiting_user: "amber",

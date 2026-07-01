@@ -97,7 +97,7 @@ export function WorkItemsView() {
       <WorkItemDetailDrawer
         open={selected != null} onClose={() => setSelected(null)} id={selected}
         agents={W.agents} agentName={W.agentName} teamName={W.teamName} repo={repo}
-        getDetail={W.getDetail} patchItem={W.patchItem} postMessage={W.postMessage} onSelectItem={(id) => setSelected(id)}
+        getDetail={W.getDetail} patchItem={W.patchItem} postMessage={W.postMessage} submitPlan={W.submitPlan} onSelectItem={(id) => setSelected(id)}
       />
 
       <Dialog open={creating} onOpenChange={setCreating}>

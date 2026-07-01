@@ -110,6 +110,9 @@ export function db(): DatabaseSync {
       parent_task_id    TEXT,
       issue             INTEGER,
       pr                INTEGER,
+      mode              TEXT NOT NULL DEFAULT 'build_after_approval', -- plan_only|build_after_approval|autonomous_within_limits
+      plan_json         TEXT,                             -- the structured plan (Plan) when submitted
+      plan_summary      TEXT,
       created_by        TEXT,
       created_at        TEXT NOT NULL,
       updated_at        TEXT NOT NULL
@@ -137,6 +140,14 @@ export function db(): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_agent_messages_wi ON agent_messages(work_item_id, id);
     CREATE INDEX IF NOT EXISTS idx_agent_messages_thread ON agent_messages(thread_id, id);
   `);
+  // additive migrations for existing dbs (ADD COLUMN is idempotent-safe: errors if the column exists → ignore)
+  for (const col of [
+    "ALTER TABLE work_items ADD COLUMN mode TEXT NOT NULL DEFAULT 'build_after_approval'",
+    "ALTER TABLE work_items ADD COLUMN plan_json TEXT",
+    "ALTER TABLE work_items ADD COLUMN plan_summary TEXT",
+  ]) {
+    try { d.exec(col); } catch { /* column already exists */ }
+  }
   _db = d;
   return d;
 }

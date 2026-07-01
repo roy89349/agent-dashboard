@@ -2,6 +2,7 @@
 // a shell-out, never raw user input to a shell. The action_json was set when the approval was created.
 import { readFleet, writeFleet, appendCommand } from "../fleet";
 import { mergePull, createAgentTask, requeueIssue } from "../github";
+import { approvePlan } from "../plans";
 import type { Approval } from "../approvals";
 
 export async function runApprovalAction(a: Approval): Promise<{ ok: boolean; detail: string }> {
@@ -54,6 +55,12 @@ export async function runApprovalAction(a: Approval): Promise<{ ok: boolean; det
       case "cancel": {
         appendCommand({ cmd: "cancel", issue: Number(action.issue) });
         return { ok: true, detail: `cancel #${action.issue}` };
+      }
+      case "approve_plan": {
+        const wi = String(action.work_item_id ?? "");
+        if (!wi) return { ok: false, detail: "no work item on plan approval" };
+        approvePlan(wi, a.decided_by ?? "approval");
+        return { ok: true, detail: "plan approved → build_after_approval" };
       }
       case "noop":
       case "ack":

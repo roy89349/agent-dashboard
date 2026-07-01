@@ -23,7 +23,7 @@ async function authed(req: Request): Promise<boolean> {
 export async function POST(req: Request) {
   if (!(await authed(req))) return NextResponse.json({ allowed: false, error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
-  const { agentId, teamId, action } = body as { agentId?: string; teamId?: string; action?: Action };
+  const { agentId, teamId, workItemId, action } = body as { agentId?: string; teamId?: string; workItemId?: string; action?: Action };
   if (!agentId || typeof agentId !== "string")
     return NextResponse.json({ allowed: false, error: "agentId required" }, { status: 400 });
   if (!action || typeof action !== "object" || typeof (action as { type?: string }).type !== "string")
@@ -33,7 +33,9 @@ export async function POST(req: Request) {
   // their files; those are inputs the agent is acting on, not a self-attestation of safety.)
   if ((action as { type?: string }).type === "merge") delete (action as { files?: unknown }).files;
   try {
-    const d = await enforce(action, { agentId, teamId, initiator: "agent", via: "fleet", actor: agentId }, { notify: true });
+    // workItemId lets the layer resolve the work item's MODE (plan_only → block mutations). The mode is
+    // resolved SERVER-SIDE from the work item — an agent cannot supply its own mode.
+    const d = await enforce(action, { agentId, teamId, workItemId, initiator: "agent", via: "fleet", actor: agentId }, { notify: true });
     if (!d.allowed)
       return NextResponse.json({ allowed: false, approvalId: d.approvalId, decision: d.decision }, { status: 202 });
     return NextResponse.json({ allowed: true, decision: d.decision });

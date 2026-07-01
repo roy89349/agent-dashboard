@@ -8,13 +8,15 @@ import { GitPullRequest, Bug, GitBranch, ExternalLink, Send } from "lucide-react
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { AgentAvatar, RoleChip } from "@/components/fleet/agent-meta";
 import { RiskBadge } from "@/components/skills/risk-badge";
-import { StateBadge, PriorityBadge } from "./badges";
+import { StateBadge, PriorityBadge, ModeBadge } from "./badges";
 import { HandoffTimeline } from "./handoff-timeline";
-import type { WorkItem, WorkItemState } from "@/lib/work-items";
+import { PlanSection } from "./plan-section";
+import type { WorkItem, WorkItemState, WorkItemMode } from "@/lib/work-items";
 import type { AgentMessageType } from "@/lib/agent-messages";
 
 // local (client-safe) copies — the value exports live in server modules (node:sqlite)
 const WORK_ITEM_STATES: WorkItemState[] = ["queued", "running", "blocked", "waiting_user", "review", "failed", "done", "cancelled"];
+const WORK_ITEM_MODES: WorkItemMode[] = ["plan_only", "build_after_approval", "autonomous_within_limits"];
 const AGENT_MESSAGE_TYPES: AgentMessageType[] = ["handoff", "review_request", "question", "result", "blocker", "instruction", "summary"];
 import type { WorkItemDetail as Detail } from "./use-work-items";
 import type { Agent } from "@/lib/types";
@@ -22,7 +24,7 @@ import type { Agent } from "@/lib/types";
 const inputCls = "h-9 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-emerald-500/40";
 
 export function WorkItemDetailDrawer({
-  open, onClose, id, agents, agentName, teamName, repo, getDetail, patchItem, postMessage, onSelectItem,
+  open, onClose, id, agents, agentName, teamName, repo, getDetail, patchItem, postMessage, submitPlan, onSelectItem,
 }: {
   open: boolean;
   onClose: () => void;
@@ -34,6 +36,7 @@ export function WorkItemDetailDrawer({
   getDetail: (id: string) => Promise<Detail | null>;
   patchItem: (id: string, patch: Partial<WorkItem>) => Promise<WorkItem | null>;
   postMessage: (input: Record<string, unknown>) => Promise<unknown>;
+  submitPlan: (id: string, plan: Record<string, unknown>) => Promise<boolean>;
   onSelectItem: (id: string) => void;
 }) {
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -85,6 +88,7 @@ export function WorkItemDetailDrawer({
               {/* header */}
               <div className="flex flex-wrap items-center gap-2">
                 <StateBadge state={wi.state} />
+                <ModeBadge mode={wi.mode} />
                 <PriorityBadge p={wi.priority} />
                 {wi.risk_level !== "low" && <RiskBadge risk={wi.risk_level} />}
               </div>
@@ -108,15 +112,26 @@ export function WorkItemDetailDrawer({
                 <Row label="Created">{new Date(wi.created_at).toLocaleString()}{wi.created_by ? ` · ${wi.created_by}` : ""}</Row>
               </div>
 
-              {/* quick state control */}
-              <div>
-                <p className="mb-1.5 text-xs text-white/45">State</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {WORK_ITEM_STATES.map((s) => (
-                    <button key={s} onClick={() => setState(s)} className={`rounded-lg border px-2.5 py-1 text-xs capitalize ${wi.state === s ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-200" : "border-white/10 text-white/60 hover:bg-white/5"}`}>{s.replace("_", " ")}</button>
-                  ))}
+              {/* quick state + mode control */}
+              <div className="flex flex-wrap gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="mb-1.5 text-xs text-white/45">State</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {WORK_ITEM_STATES.map((s) => (
+                      <button key={s} onClick={() => setState(s)} className={`rounded-lg border px-2.5 py-1 text-xs capitalize ${wi.state === s ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-200" : "border-white/10 text-white/60 hover:bg-white/5"}`}>{s.replace("_", " ")}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-xs text-white/45">Mode</p>
+                  <select value={wi.mode} onChange={async (e) => { const r = await patchItem(wi.id, { mode: e.target.value as WorkItemMode }); if (r) { toast.success(`Mode → ${e.target.value}`); refresh(); } }} className={inputCls}>
+                    {WORK_ITEM_MODES.map((m) => <option key={m} value={m} className="bg-[#0d1322]">{m.replace(/_/g, " ")}</option>)}
+                  </select>
                 </div>
               </div>
+
+              {/* plan (compose in plan-only, or read the submitted plan) */}
+              <PlanSection wi={wi} submitPlan={submitPlan} onDone={refresh} />
 
               {/* parent / children */}
               {(wi.parent_task_id || (detail?.children.length ?? 0) > 0) && (

@@ -17,6 +17,7 @@ import {
 } from "../approvals";
 import { runApprovalAction } from "./actions";
 import { enforce, permissionStatusOf } from "../permissions";
+import { handlePlanRejection } from "../plans";
 
 export interface Reply {
   text: string;
@@ -239,13 +240,20 @@ async function decideReply(
   if (action === "info") return { text: approvalCard(a) + `\n\nstatus: <b>${esc(a.status)}</b>` };
   if (action === "manager") return { text: info("👔 Over to the manager", ["Leaving this one for the manager to weigh in."]) };
   try {
+    // `a` was fetched BEFORE deciding → a.status is the pre-decision status. decideApproval is idempotent, so
+    // guard the side effects on the real pending→decided transition (a re-tapped inline button must not replay
+    // the action / re-block the work item).
+    const first = a.status === "pending";
     if (action === "pause") {
-      decideApproval(id, "reject", { via: "telegram", by: actor, trusted: true, reason: "paused via phone" });
+      const paused = decideApproval(id, "reject", { via: "telegram", by: actor, trusted: true, reason: "paused via phone" });
       if (a.issue) appendCommand({ cmd: "cancel", issue: a.issue });
+      if (first) handlePlanRejection(paused, actor); // a paused plan → block the work item + feedback
       return { text: ok(`Paused${a.issue ? ` #${esc(a.issue)}` : ""} and dismissed the approval.`) };
     }
     const decided = decideApproval(id, action, { via: "telegram", by: actor, trusted: true });
+    if (action === "reject" && first) handlePlanRejection(decided, actor); // a rejected plan → block + feedback
     if (action === "approve") {
+      if (!first) return { text: warn("Already decided.") }; // idempotent re-approve: never re-run the action
       const res = await runApprovalAction(decided);
       return { text: res.ok ? ok(`Approved — ${esc(res.detail)}`) : warn(`Approved, but the action failed: ${esc(res.detail)}`) };
     }

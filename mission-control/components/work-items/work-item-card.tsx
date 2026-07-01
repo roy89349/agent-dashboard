@@ -2,7 +2,7 @@
 import { GitPullRequest, Bug, Bot, GitBranch } from "lucide-react";
 import { AgentAvatar, RoleChip } from "@/components/fleet/agent-meta";
 import { RiskBadge } from "@/components/skills/risk-badge";
-import { StateBadge, PriorityBadge } from "./badges";
+import { StateBadge, PriorityBadge, ModeBadge } from "./badges";
 import type { WorkItem } from "@/lib/work-items";
 
 export function WorkItemCard({
@@ -25,6 +25,7 @@ export function WorkItemCard({
         <StateBadge state={item.state} />
       </div>
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+        {item.mode === "plan_only" && <ModeBadge mode={item.mode} />}
         <PriorityBadge p={item.priority} />
         {item.risk_level !== "low" && <RiskBadge risk={item.risk_level} />}
         {(item.assigned_agent_id || item.assigned_role) && (

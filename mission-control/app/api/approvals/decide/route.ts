@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { verifySession } from "@/lib/session";
 import { decideApproval, getApproval, publicApproval, approvalErrorStatus } from "@/lib/approvals";
 import { runApprovalAction } from "@/lib/phone/actions";
+import { handlePlanRejection } from "@/lib/plans";
 import { recordAudit } from "@/lib/db";
 import { appendCommand } from "@/lib/fleet";
 
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
 
     // ── pause: reject the approval AND cancel the underlying task (same as the phone's Pause button) ──
     if (b.action === "pause") {
+      const pre = getApproval(b.id); // capture the PRE-decision status: only side-effect on the real transition
       const decided = decideApproval(b.id, "reject", {
         via: "dashboard", by: "dashboard", trusted: true, reason: b.reason ?? "paused via dashboard",
       });
@@ -60,10 +62,16 @@ export async function POST(req: Request) {
         appendCommand({ cmd: "cancel", issue: decided.issue });
         detail = `paused and cancelled #${decided.issue}`;
       }
+      if (pre?.status === "pending") handlePlanRejection(decided, "dashboard"); // a paused plan → block the work item + feedback
       return NextResponse.json({ approval: publicApproval(decided), action: { ok: true, detail } });
     }
 
     // ── approve / reject (token OR session) ──
+    // decideApproval is idempotent (re-deciding returns the row without throwing), so guard the SIDE EFFECTS on
+    // the actual pending→decided transition — a re-tapped Approve must not re-run runApprovalAction (which would
+    // replay approve_plan / open a duplicate task) and a re-tapped Reject must not re-block.
+    const pre = getApproval(b.id);
+    const firstDecision = pre?.status === "pending";
     const decided = decideApproval(
       b.id,
       b.action as "approve" | "reject",
@@ -71,7 +79,8 @@ export async function POST(req: Request) {
         ? { via: "dashboard", by: "dashboard", trusted: true, reason: b.reason }
         : { via: "api", by: "token", token: b.token, reason: b.reason },
     );
-    const actionResult = b.action === "approve" ? await runApprovalAction(decided) : null;
+    const actionResult = b.action === "approve" && firstDecision ? await runApprovalAction(decided) : null;
+    if (b.action === "reject" && firstDecision) handlePlanRejection(decided, "dashboard"); // a rejected plan → block + feedback
     return NextResponse.json({ approval: publicApproval(decided), action: actionResult });
   } catch (e) {
     return NextResponse.json(

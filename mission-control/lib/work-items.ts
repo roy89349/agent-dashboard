@@ -10,10 +10,12 @@ export type WorkItemSource = "github_issue" | "chat" | "phone" | "agent" | "manu
 export type WorkItemState = "queued" | "running" | "blocked" | "waiting_user" | "review" | "failed" | "done" | "cancelled";
 export type WorkItemPriority = "low" | "normal" | "high" | "urgent";
 export type WorkItemRisk = "low" | "medium" | "high" | "critical";
+export type WorkItemMode = "plan_only" | "build_after_approval" | "autonomous_within_limits";
 
 export const WORK_ITEM_STATES: WorkItemState[] = ["queued", "running", "blocked", "waiting_user", "review", "failed", "done", "cancelled"];
 export const WORK_ITEM_PRIORITIES: WorkItemPriority[] = ["low", "normal", "high", "urgent"];
 export const WORK_ITEM_RISKS: WorkItemRisk[] = ["low", "medium", "high", "critical"];
+export const WORK_ITEM_MODES: WorkItemMode[] = ["plan_only", "build_after_approval", "autonomous_within_limits"];
 const SOURCES: WorkItemSource[] = ["github_issue", "chat", "phone", "agent", "manual", "workflow"];
 
 export interface WorkItem {
@@ -31,6 +33,9 @@ export interface WorkItem {
   parent_task_id: string | null;
   issue: number | null;
   pr: number | null;
+  mode: WorkItemMode;
+  plan: Record<string, unknown> | null; // parsed plan_json (the structured Plan), when submitted
+  plan_summary: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -67,10 +72,17 @@ function rowToWorkItem(r: Record<string, unknown>): WorkItem {
     parent_task_id: (r.parent_task_id as string) ?? null,
     issue: (r.issue as number) ?? null,
     pr: (r.pr as number) ?? null,
+    mode: ((r.mode as WorkItemMode) ?? "build_after_approval"),
+    plan: parseJson(r.plan_json as string | null),
+    plan_summary: (r.plan_summary as string) ?? null,
     created_by: (r.created_by as string) ?? null,
     created_at: r.created_at as string,
     updated_at: r.updated_at as string,
   };
+}
+function parseJson(s: string | null): Record<string, unknown> | null {
+  if (!s) return null;
+  try { const p = JSON.parse(s); return p && typeof p === "object" ? p : null; } catch { return null; }
 }
 
 export interface CreateWorkItemInput {
@@ -87,6 +99,7 @@ export interface CreateWorkItemInput {
   parent_task_id?: string | null;
   issue?: number | null;
   pr?: number | null;
+  mode?: WorkItemMode;
   created_by?: string | null;
 }
 
@@ -105,6 +118,9 @@ export function createWorkItem(input: CreateWorkItemInput): WorkItem {
     if (existing) return existing;
   }
   const now = new Date().toISOString();
+  const risk = oneOf(input.risk_level, WORK_ITEM_RISKS, "low");
+  // DEFAULT-TO-PLAN-ONLY: large/risky tasks (high/critical risk) start in plan_only unless explicitly set
+  const mode = oneOf(input.mode, WORK_ITEM_MODES, risk === "high" || risk === "critical" ? "plan_only" : "build_after_approval");
   const wi: WorkItem = {
     id: crypto.randomUUID(),
     source_type: oneOf(input.source_type, SOURCES, "manual"),
@@ -116,10 +132,13 @@ export function createWorkItem(input: CreateWorkItemInput): WorkItem {
     team_id: str(input.team_id, 120),
     state: oneOf(input.state, WORK_ITEM_STATES, "queued"),
     priority: oneOf(input.priority, WORK_ITEM_PRIORITIES, "normal"),
-    risk_level: oneOf(input.risk_level, WORK_ITEM_RISKS, "low"),
+    risk_level: risk,
     parent_task_id: str(input.parent_task_id, 64),
     issue,
     pr: intOrNull(input.pr),
+    mode,
+    plan: null,
+    plan_summary: null,
     created_by: str(input.created_by, 120),
     created_at: now,
     updated_at: now,
@@ -127,12 +146,12 @@ export function createWorkItem(input: CreateWorkItemInput): WorkItem {
   try {
     db()
       .prepare(
-        `INSERT INTO work_items (id,source_type,source_ref,title,description,assigned_agent_id,assigned_role,team_id,state,priority,risk_level,parent_task_id,issue,pr,created_by,created_at,updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        `INSERT INTO work_items (id,source_type,source_ref,title,description,assigned_agent_id,assigned_role,team_id,state,priority,risk_level,parent_task_id,issue,pr,mode,plan_json,plan_summary,created_by,created_at,updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,?,?,?)`,
       )
       .run(
         wi.id, wi.source_type, wi.source_ref, wi.title, wi.description, wi.assigned_agent_id, wi.assigned_role, wi.team_id,
-        wi.state, wi.priority, wi.risk_level, wi.parent_task_id, wi.issue, wi.pr, wi.created_by, wi.created_at, wi.updated_at,
+        wi.state, wi.priority, wi.risk_level, wi.parent_task_id, wi.issue, wi.pr, wi.mode, wi.created_by, wi.created_at, wi.updated_at,
       );
   } catch (e) {
     // lost a race on the unique-issue index → return the row that won (still idempotent)
@@ -181,7 +200,7 @@ export function childWorkItems(parentId: string): WorkItem[] {
 }
 
 export type WorkItemPatch = Partial<
-  Pick<WorkItem, "title" | "description" | "state" | "priority" | "risk_level" | "assigned_agent_id" | "assigned_role" | "team_id" | "parent_task_id" | "issue" | "pr" | "source_ref">
+  Pick<WorkItem, "title" | "description" | "state" | "priority" | "risk_level" | "assigned_agent_id" | "assigned_role" | "team_id" | "parent_task_id" | "issue" | "pr" | "source_ref" | "mode">
 > & { actor?: string };
 
 /** Validate + apply a patch to an existing work item. Only known columns; enums clamped; free text redacted. */
@@ -201,15 +220,16 @@ export function updateWorkItem(id: string, patch: WorkItemPatch): WorkItem {
   if (patch.issue !== undefined) next.issue = intOrNull(patch.issue);
   if (patch.pr !== undefined) next.pr = intOrNull(patch.pr);
   if (patch.source_ref !== undefined) next.source_ref = str(patch.source_ref, 300);
+  if (patch.mode !== undefined) next.mode = oneOf(patch.mode, WORK_ITEM_MODES, cur.mode);
   // audit EVERY field change (not only state) — the PATCH endpoint mutates any field
-  const changed = (["title", "description", "state", "priority", "risk_level", "assigned_agent_id", "assigned_role", "team_id", "parent_task_id", "issue", "pr", "source_ref"] as const).filter((k) => next[k] !== cur[k]);
+  const changed = (["title", "description", "state", "priority", "risk_level", "assigned_agent_id", "assigned_role", "team_id", "parent_task_id", "issue", "pr", "source_ref", "mode"] as const).filter((k) => next[k] !== cur[k]);
   if (changed.length === 0) return cur; // no-op → no write, no updated_at bump
   next.updated_at = new Date().toISOString();
   db()
     .prepare(
-      `UPDATE work_items SET title=?,description=?,state=?,priority=?,risk_level=?,assigned_agent_id=?,assigned_role=?,team_id=?,parent_task_id=?,issue=?,pr=?,source_ref=?,updated_at=? WHERE id=?`,
+      `UPDATE work_items SET title=?,description=?,state=?,priority=?,risk_level=?,assigned_agent_id=?,assigned_role=?,team_id=?,parent_task_id=?,issue=?,pr=?,source_ref=?,mode=?,updated_at=? WHERE id=?`,
     )
-    .run(next.title, next.description, next.state, next.priority, next.risk_level, next.assigned_agent_id, next.assigned_role, next.team_id, next.parent_task_id, next.issue, next.pr, next.source_ref, next.updated_at, id);
+    .run(next.title, next.description, next.state, next.priority, next.risk_level, next.assigned_agent_id, next.assigned_role, next.team_id, next.parent_task_id, next.issue, next.pr, next.source_ref, next.mode, next.updated_at, id);
   if (next.state !== cur.state)
     recordAudit({ actor: patch.actor ?? "dashboard", via: "dashboard", action: "work_item.state", issue: next.issue, detail: `${cur.state} → ${next.state}` });
   else
@@ -231,6 +251,15 @@ export function blockWorkItem(id: string, reason: string, actor?: string): WorkI
   const wi = updateWorkItem(id, { state: "blocked", actor });
   recordAudit({ actor: actor ?? "dashboard", via: "dashboard", action: "work_item.block", issue: wi.issue, detail: redact(reason).slice(0, 200) });
   return wi;
+}
+
+/** Store a submitted plan on the work item (plan_json + a short plan_summary). */
+export function setPlan(id: string, planJson: string, planSummary: string, actor?: string): WorkItem {
+  const cur = getWorkItem(id);
+  if (!cur) throw new HttpError(404, "work item not found");
+  db().prepare("UPDATE work_items SET plan_json=?, plan_summary=?, updated_at=? WHERE id=?").run(planJson.slice(0, 40000), redact(planSummary).slice(0, 2000), new Date().toISOString(), id);
+  recordAudit({ actor: actor ?? "system", via: "system", action: "work_item.plan_submitted", issue: cur.issue, detail: "plan submitted" });
+  return getWorkItem(id)!;
 }
 
 /** Get the work item linked to a GitHub issue, creating one lazily (backward compat: old issue cards still
