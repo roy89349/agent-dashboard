@@ -16,6 +16,7 @@ import {
 } from "../approvals.ts";
 import { enforce, permissionStatusOf } from "../permissions.ts";
 import { handlePlanRejection } from "../plans.ts";
+import { learnFromRejection } from "../rejection-learning.ts";
 import { handleWorkflowRejection } from "../workflows.ts";
 import { handleDecompositionRejection, proposeDecomposition } from "../manager.ts";
 import { redact } from "../redact.ts";
@@ -464,7 +465,7 @@ async function decideReply(
       return { text: ok(cancelled ? `Paused #${esc(a.issue!)} and dismissed the approval.` : "Dismissed the approval.") };
     }
     const decided = decideApproval(id, action, { via: "telegram", by: actor, trusted: true });
-    if (action === "reject" && first) { handlePlanRejection(decided, actor); handleWorkflowRejection(decided, actor); handleDecompositionRejection(decided, actor); } // rejected plan/step/decomposition → block + feedback
+    if (action === "reject" && first) { handlePlanRejection(decided, actor); handleWorkflowRejection(decided, actor); handleDecompositionRejection(decided, actor); learnFromRejection(decided, actor); } // rejected plan/step/decomposition → block + feedback + persisted lesson for the agent
     if (action === "approve") {
       if (!first) return { text: warn("Already decided.") }; // idempotent re-approve: never re-run the action
       const { runApprovalAction } = await import("./actions.ts");

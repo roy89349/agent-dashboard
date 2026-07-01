@@ -6,6 +6,7 @@ import { runApprovalAction } from "@/lib/phone/actions";
 import { handlePlanRejection } from "@/lib/plans";
 import { handleWorkflowRejection } from "@/lib/workflows";
 import { handleDecompositionRejection } from "@/lib/manager";
+import { learnFromRejection } from "@/lib/rejection-learning";
 import { recordAudit } from "@/lib/db";
 import { appendCommand } from "@/lib/fleet";
 
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
         : { via: "api", by: "token", token: b.token, reason: b.reason },
     );
     const actionResult = b.action === "approve" && firstDecision ? await runApprovalAction(decided) : null;
-    if (b.action === "reject" && firstDecision) { handlePlanRejection(decided, "dashboard"); handleWorkflowRejection(decided, "dashboard"); handleDecompositionRejection(decided, "dashboard"); } // rejected plan/step/decomposition → block + feedback
+    if (b.action === "reject" && firstDecision) { handlePlanRejection(decided, "dashboard"); handleWorkflowRejection(decided, "dashboard"); handleDecompositionRejection(decided, "dashboard"); learnFromRejection(decided, "dashboard"); } // rejected plan/step/decomposition → block + feedback + persisted lesson for the agent
     return NextResponse.json({ approval: publicApproval(decided), action: actionResult });
   } catch (e) {
     return NextResponse.json(

@@ -1,0 +1,19 @@
+[Unit]
+Description=Mission Control fleet watchdog tick (health check + Telegram alert)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=fleet
+ExecStart=/home/fleet/agent-dashboard/deploy/watchdog.sh
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# ── hardening (mirrors mission-control-dashboard.service) ──
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+RestrictSUIDSGID=true
