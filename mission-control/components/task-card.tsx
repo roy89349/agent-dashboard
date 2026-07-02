@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink, GitMerge, Bot, AlertTriangle, ArrowUp, RotateCcw, X, MessagesSquare } from "lucide-react";
+import { ExternalLink, FolderGit2, GitMerge, Bot, AlertTriangle, ArrowUp, RotateCcw, X, MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { AgentIdentity, RiskBadge, WaitingBadge } from "@/components/fleet/agent-meta";
@@ -134,6 +134,11 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
         <span className={pill}>#{card.issue}</span>
+        {card.repo && card.repo !== "primary" && (
+          <span className="inline-flex items-center gap-1 rounded bg-teal-500/15 px-1.5 py-0.5 text-teal-300">
+            <FolderGit2 className="size-3" /> {card.repo}
+          </span>
+        )}
         {card.model && (
           <span className="inline-flex items-center gap-1 rounded bg-indigo-500/15 px-1.5 py-0.5 text-indigo-300">
             <Bot className="size-3" /> {card.model}

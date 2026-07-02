@@ -90,6 +90,7 @@ export interface SlotStatus {
   current_phase?: FleetState | null; // alias of `phase`, set in readStatus for clarity
   risk_level?: RiskLevel | null; // from a pending approval for this issue, if any
   awaiting_approval?: boolean; // a pending approval is blocking/waiting on this issue
+  repo?: string | null; // multi-repo: repos.json id ("primary"/absent = the env repo)
 }
 
 /** Live state the supervisor mirrors to control/status.json every tick. */
@@ -116,6 +117,68 @@ export interface FleetStatus {
   slots: SlotStatus[];
   /** Computed by the server: is the supervisor still alive? (pid + fresh heartbeat) */
   online?: boolean;
+}
+
+// ── multi-repo registry (control/repos.json) — run the fleet across several projects ────────────────
+// SHARED CONTRACT (repo-schema.md — all three golf-3 agents build to it). Additive + SELLABLE-BY-DEFAULT:
+// a missing/empty control/repos.json = single-repo mode, byte-identical to today. The PRIMARY repo (env
+// REPO/REPO_DIR/PROJECT_NAME/PROJECT_DESC/GREEN_CMD/LABEL_READY) is ALWAYS synthesised as id "primary" and
+// is NEVER stored in the file — the registry holds EXTRA repos only. Listing merges primary + enabled
+// extras. Each repo inherits the global budget/risk/model defaults unless it sets its own overrides.
+// Server-validated + CAS-guarded (lib/repos.ts), identical envelope to AgentsFile. Secrets never stored.
+// Secondary-repo state files are state/issue-<id>--<n>.json; heartbeats/status slots and board cards MAY
+// carry a `repo` field (tolerate absence; absent/"primary" = the env repo).
+
+/** Minimum risk a change in this repo is treated as — can only RAISE risk (quality-over-savings). */
+export type RiskFloor = "low" | "medium" | "high";
+export const RISK_FLOORS: RiskFloor[] = ["low", "medium", "high"];
+
+/** Per-repo budget mode — the token-optimization scope="repo" policy keys off the repo id. Emergency is
+ *  intentionally NOT selectable per repo (it is a global, approval-gated incident switch). */
+export type RepoBudgetMode = "economy" | "balanced" | "high_quality";
+export const REPO_BUDGET_MODES: RepoBudgetMode[] = ["economy", "balanced", "high_quality"];
+
+/** ALL optional; null/empty = inherit the global default. Clamped server-side (lib/repos.ts). */
+export interface RepoOverrides {
+  budget_mode: RepoBudgetMode | null; // null = inherit tokens.mode / repo-scope default
+  max_pr_per_day: number | null; // null = inherit MAX_PR_PER_DAY; positive int otherwise
+  risk_floor: RiskFloor | null; // null = inherit; can only raise the minimum risk
+  model: string | null; // null = inherit ROUTER/MODEL
+}
+
+/** One EXTRA repository the fleet may build against (the primary is env-synthesised, never stored). */
+export interface Repo {
+  id: string; // slug [a-z0-9-]{1,40}, unique, NEVER "primary" — used in state filenames (issue-<id>--<n>.json)
+  name: string; // display name, e.g. "TapSafe"
+  repo: string; // GitHub slug "owner/name"
+  repo_dir: string; // absolute local clone path (git worktrees); format-validated only (lives on the VPS)
+  project_name: string;
+  project_desc: string;
+  green_cmd: string; // per-repo green gate; "" = inherit GREEN_CMD
+  label_ready: string; // per-repo ready label; "" = inherit LABEL_READY
+  vault_dir: string; // optional per-repo knowledge vault; "" = none
+  enabled: boolean;
+  overrides: RepoOverrides;
+}
+
+/** Partial as the UI submits it (id required, rest merged over the existing record then defaulted). */
+export type RepoInput = Partial<Omit<Repo, "overrides">> & { id: string; overrides?: Partial<RepoOverrides> | null };
+
+/** control/repos.json — CAS-guarded by rev, identical envelope to AgentsFile. Holds EXTRAS only. */
+export interface ReposFile {
+  schema: number;
+  rev: number;
+  updated_at: string | null;
+  repos: Repo[];
+}
+
+/** A repo as the dashboard renders it: the synthesised primary + each enabled extra. */
+export type ResolvedRepo = Repo & { primary: boolean };
+
+/** Patch verbs mirror AgentsPatch. upsert = MERGE over the existing record (partial-safe). */
+export interface ReposPatch {
+  upsert?: RepoInput; // create/update one repo by id (merge)
+  remove?: string; // remove one repo by id (never "primary")
 }
 
 export type FleetCommandName = "kill" | "cancel" | "breaker-reset";
@@ -151,6 +214,8 @@ export interface BoardCard {
   teamName?: string | null;
   riskLevel?: RiskLevel | null;
   awaitingApproval?: boolean;
+  /** Multi-repo: repos.json id this card builds against (absent/null = the primary env repo). */
+  repo?: string | null;
   /** A visual-PR screenshot exists on disk for this PR (served by GET /api/fleet/pr-visual?pr=N). */
   hasScreenshot?: boolean;
 }

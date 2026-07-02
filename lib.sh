@@ -8,6 +8,8 @@ source "$FLEET_DIR/config.env"
 [ -f "$FLEET_DIR/config.local.env" ] && source "$FLEET_DIR/config.local.env"
 mkdir -p "$FLEET_DIR/logs" "$FLEET_DIR/worktrees" "$STATE_DIR" "$CONTROL_DIR" "$CONTROL_DIR/cancel"
 chmod 700 "$CONTROL_DIR" "$CONTROL_DIR/cancel" "$STATE_DIR" "$FLEET_DIR/logs" 2>/dev/null || true
+# multi-repo registry (optional). Absent/empty/invalid file = single-repo, byte-identical to before.
+: "${REPOS_FILE:=$CONTROL_DIR/repos.json}"
 
 # Shared secret pattern for the secret-gate (worker.sh). KEEP IN SYNC with redact() in
 # mission-control/lib/fleet.ts. Covers: API keys, GitHub tokens (classic+fine-grained), JWTs
@@ -18,13 +20,31 @@ export SECRET_RE
 ts(){ date '+%Y-%m-%dT%H:%M:%S%z'; }
 log(){ printf '%s | %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
-# emit <issue> <state> [json-extra] -> events.jsonl + state/issue-<n>.json (telemetry)
+# state_file <issue> [repo-id] -> per-issue state path. Primary keeps the legacy name
+# state/issue-<n>.json; a secondary repo (multi-repo) namespaces to state/issue-<id>--<n>.json.
+state_file(){
+  if [ -n "${2:-}" ]; then printf '%s\n' "$STATE_DIR/issue-$2--$1.json"
+  else printf '%s\n' "$STATE_DIR/issue-$1.json"; fi
+}
+
+# emit <issue> <state> [json-extra] -> events.jsonl + state/issue-<n>.json (telemetry).
+# Multi-repo: when FLEET_REPO_ID is set (secondary repo), the state file is namespaced
+# (state_file) and "repo":"<id>" is merged into the event data. Unset/empty = legacy bytes.
 emit(){
   local num="$1" st="$2" now; now="$(ts)"
   local extra="${3:-}"; [ -n "$extra" ] || extra='{}'
+  local rid="${FLEET_REPO_ID:-}"
+  if [ -n "$rid" ]; then
+    extra="$(python3 -c 'import json,sys
+try: d=json.loads(sys.argv[1])
+except Exception: d={}
+d["repo"]=sys.argv[2]
+print(json.dumps(d,ensure_ascii=False))' "$extra" "$rid" 2>/dev/null)"
+    [ -n "$extra" ] || extra='{}'
+  fi
   printf '{"ts":"%s","issue":%s,"state":"%s","data":%s}\n' "$now" "$num" "$st" "$extra" \
     >>"$FLEET_DIR/logs/events.jsonl"
-  python3 - "$STATE_DIR/issue-$num.json" "$num" "$st" "$now" "$extra" >/dev/null 2>&1 <<'PY'
+  python3 - "$(state_file "$num" "$rid")" "$num" "$st" "$now" "$extra" >/dev/null 2>&1 <<'PY'
 import json,sys
 path,num,st,now,extra=sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5]
 try: d=json.load(open(path))
@@ -195,6 +215,96 @@ mc_watchdog_token(){
 # notify <message> (uses NOTIFY_CMD with $MSG in scope; empty = no-op)
 notify(){ [ -n "${NOTIFY_CMD:-}" ] || return 0; MSG="$1" bash -c "$NOTIFY_CMD" >/dev/null 2>&1 || true; }
 
+# ── multi-repo registry ($REPOS_FILE — EXTRA repos next to the primary REPO/REPO_DIR) ──
+# Schema: {"rev":N,"repos":[{"id","repo","dir","name","desc","green_cmd","enabled"}]}
+# The PRIMARY repo is NOT in this file. No/empty/invalid file ⇒ every helper below yields
+# nothing and all callers keep today's single-repo behaviour byte-identically.
+
+# valid_repo_id <id> -> 0 when the id matches the slug contract ^[a-z0-9][a-z0-9-]{0,31}$
+valid_repo_id(){ printf '%s' "${1:-}" | grep -qE '^[a-z0-9][a-z0-9-]{0,31}$'; }
+
+# repos_list -> one line per ENABLED valid repo: id<TAB>repo<TAB>dir<TAB>green_cmd<TAB>name
+# Invalid entries (bad id, missing repo/dir, tab/newline in a field) are skipped with a
+# warning on stderr — never a crash. Same argv-fed python pattern as fleet_get (no stdin pipe).
+repos_list(){
+  [ -f "$REPOS_FILE" ] || return 0
+  python3 - "$REPOS_FILE" <<'PY'
+import json,re,sys
+path=sys.argv[1]
+try: repos=json.load(open(path)).get("repos",[]) or []
+except Exception:
+    print("repos.json: unreadable/invalid JSON — ignored (single-repo mode)",file=sys.stderr)
+    repos=[]
+if not isinstance(repos,list): repos=[]
+idre=re.compile(r'^[a-z0-9][a-z0-9-]{0,31}$')
+for r in repos:
+    if not isinstance(r,dict): continue
+    rid=r.get("id")
+    if not isinstance(rid,str) or not idre.match(rid):
+        print("repos.json: invalid repo id %r — skipped"%(rid,),file=sys.stderr); continue
+    repo=r.get("repo"); d=r.get("dir")
+    if not isinstance(repo,str) or "/" not in repo or not isinstance(d,str) or not d:
+        print("repos.json: repo %r missing/invalid repo or dir — skipped"%(rid,),file=sys.stderr); continue
+    if not r.get("enabled",True): continue          # disabled = not claimable (repo_field still resolves it)
+    g=r.get("green_cmd"); n=r.get("name")
+    g=g if isinstance(g,str) else ""
+    n=n if isinstance(n,str) and n else rid
+    if any(("\t" in x) or ("\n" in x) for x in (rid,repo,d,g,n)):
+        print("repos.json: repo %r has a tab/newline in a field — skipped"%(rid,),file=sys.stderr); continue
+    print("%s\t%s\t%s\t%s\t%s"%(rid,repo,d,g,n))
+PY
+}
+
+# repo_field <id> <field> -> that repo's scalar field from $REPOS_FILE, or empty.
+# Looks at ALL entries (also disabled ones): an in-flight claimed task must still resolve.
+repo_field(){
+  [ -f "$REPOS_FILE" ] || return 0
+  python3 - "$REPOS_FILE" "$1" "$2" 2>/dev/null <<'PY'
+import json,sys
+path,rid,key=sys.argv[1],sys.argv[2],sys.argv[3]
+try: repos=json.load(open(path)).get("repos",[]) or []
+except Exception: repos=[]
+r=next((x for x in repos if isinstance(x,dict) and x.get("id")==rid), None)
+if not isinstance(r,dict): sys.exit()
+v=r.get(key)
+if v is None or isinstance(v,(dict,list)): sys.exit()
+print("true" if v is True else "false" if v is False else v)
+PY
+}
+
+# Claim-string contract (handed from claim_next to worker.sh):
+#   primary repo  -> bare issue number    "42"          (unchanged — legacy compat)
+#   secondary repo-> "<repo-id>#<issue>"  "tapsafe#42"
+# claim_issue_of <claim> -> issue number · claim_repo_of <claim> -> repo id ('' for primary)
+claim_issue_of(){ printf '%s\n' "${1##*#}"; }
+claim_repo_of(){ case "$1" in *#*) printf '%s\n' "${1%%#*}";; esac; }
+
+# pick_next_in <owner/name> -> next usable LABEL_READY issue in a SECONDARY repo (no claim).
+# Same filters/skip-labels as pick_next; the fleet.json priority queue stays PRIMARY-ONLY
+# (its entries are plain issue ints — see docs/multi-repo.md), so secondaries use GitHub order.
+pick_next_in(){
+  gh issue list --repo "$1" --label "$LABEL_READY" --state open --json number,labels --limit 50 \
+  | python3 -c 'import json,sys
+try: items=json.load(sys.stdin)
+except Exception: items=[]
+for it in items:
+    labs={l["name"] for l in it.get("labels",[])}
+    if labs & {"agent-wip","agent-done","agent-failed","agent-cancelled"}: continue
+    print(it["number"]); break'
+}
+
+# pick_next_secondary -> claim string "<id>#<n>" of the first enabled secondary repo with a
+# usable ready issue (file order), or nothing. No repos.json = no output = no behaviour change.
+pick_next_secondary(){
+  local rid rrepo rdir rgreen rname n
+  while IFS=$'\t' read -r rid rrepo rdir rgreen rname; do
+    [ -n "$rid" ] || continue
+    n="$(pick_next_in "$rrepo")"; [ -n "$n" ] || continue
+    printf '%s#%s\n' "$rid" "$n"; return 0
+  done < <(repos_list 2>/dev/null)
+  return 0
+}
+
 # pick_next -> number of the next usable ready issue (without claiming).
 # Respects control/fleet.json priority[] (stable sort: list position first,
 # rest in GitHub order) and skips agent-cancelled.
@@ -294,10 +404,14 @@ cand.sort(key=lambda n: pos.get(n, 10**6))
 if cand: print(cand[0])' "$CONTROL_DIR/fleet.json"
 }
 
-# pick_next_any -> pick_next, plus (night shift on + in window + under cap) the night queue.
-# Day (LABEL_READY) issues keep ABSOLUTE priority; with NIGHT_SHIFT=off this IS pick_next.
+# pick_next_any -> pick_next, then the secondary repos (multi-repo; claim string "<id>#<n>"),
+# plus (night shift on + in window + under cap) the night queue.
+# Day (LABEL_READY) issues in the PRIMARY repo keep ABSOLUTE priority; with NIGHT_SHIFT=off
+# and no repos.json this IS pick_next.
 pick_next_any(){
   local n; n="$(pick_next)"
+  if [ -n "$n" ]; then echo "$n"; return 0; fi
+  n="$(pick_next_secondary)"
   if [ -n "$n" ]; then echo "$n"; return 0; fi
   [ "${NIGHT_SHIFT:-off}" = "on" ] || return 0
   in_night_window || return 0
@@ -305,8 +419,10 @@ pick_next_any(){
   pick_next_night
 }
 
-# claim_next -> claims (ready->wip) and echoes the number, or nothing.
-# Night shift: only when the day queue is EMPTY (day issues keep absolute priority) and
+# claim_next -> claims (ready->wip) and echoes the CLAIM STRING, or nothing.
+# Primary repo -> bare issue number (unchanged). Secondary repo (repos.json) -> "<id>#<n>".
+# Order: primary day queue > secondary repos (file order) > night queue (primary-only).
+# Night shift: only when the day queues are EMPTY (day issues keep absolute priority) and
 # NIGHT_SHIFT=on + inside the window + under the per-night cap, also claim LABEL_NIGHT issues.
 # Night claims still pass through the supervisor's normal day-cap/budget/breaker gates.
 claim_next(){
@@ -314,6 +430,17 @@ claim_next(){
   if [ -n "$n" ]; then
     gh issue edit "$n" --repo "$REPO" --add-label agent-wip --remove-label "$LABEL_READY" >/dev/null 2>&1 || return 0
     emit "$n" claimed '{}'; echo "$n"; return 0
+  fi
+  # ── additive multi-repo path (no repos.json = no-op; any failure = "no claim") ──
+  local c rid rrepo
+  c="$(pick_next_secondary)"
+  if [ -n "$c" ]; then
+    rid="$(claim_repo_of "$c")"; n="$(claim_issue_of "$c")"
+    rrepo="$(repo_field "$rid" repo)"
+    [ -n "$rrepo" ] || return 0
+    gh issue edit "$n" --repo "$rrepo" --add-label agent-wip --remove-label "$LABEL_READY" >/dev/null 2>&1 || return 0
+    ( FLEET_REPO_ID="$rid"; emit "$n" claimed '{}' )
+    echo "$c"; return 0
   fi
   # ── additive night path (any failure here = "no claim", never a broken day loop) ──
   [ "${NIGHT_SHIFT:-off}" = "on" ] || return 0
@@ -430,7 +557,7 @@ push_telemetry(){
 cols=["issue","state","title","branch","model","pr_url","review_verdict","error"]
 try: d=json.load(open(sys.argv[1]))
 except Exception: d={}
-print(json.dumps({k:d[k] for k in cols if k in d}))' "$STATE_DIR/issue-$num.json" 2>/dev/null)"
+print(json.dumps({k:d[k] for k in cols if k in d}))' "$(state_file "$num" "${FLEET_REPO_ID:-}")" 2>/dev/null)"
   [ -n "$task" ] && curl -s -m 5 -o /dev/null \
     -X POST "$SUPABASE_MC_URL/rest/v1/fleet_tasks?on_conflict=issue" \
     -H "apikey: $SUPABASE_MC_WRITE_KEY" -H "Authorization: Bearer $SUPABASE_MC_WRITE_KEY" \

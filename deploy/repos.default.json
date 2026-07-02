@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "rev": 0,
+  "updated_at": null,
+  "_note": "Committed default repo registry (EMPTY on purpose). The runtime file is control/repos.json (gitignored), seeded from this. An empty registry = single-repo mode: the fleet uses the primary REPO/REPO_DIR from config.local.env and behaves byte-identically to before. Add extra repos via the dashboard (Repositories screen) or by editing control/repos.json. Each repo inherits the global budget/risk/model defaults unless it sets its own overrides — customers never HAVE to configure per-repo. Secrets never live here.",
+  "repos": []
+}

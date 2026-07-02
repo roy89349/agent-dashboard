@@ -2,12 +2,25 @@ import { NextResponse } from "next/server";
 import { getProvider } from "@/lib/phone";
 import { routeCommand } from "@/lib/phone/commands";
 import { executeCommand } from "@/lib/phone/execute";
+import { transcribeVoice } from "@/lib/phone/transcribe";
 import { recordAudit, setSetting } from "@/lib/db";
 import { redact } from "@/lib/redact";
 import { logPhoneMessage } from "@/lib/conversations";
+import type { IncomingMessage } from "@/lib/phone/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+/** A Telegram voice note (or audio file) → the file_id + chat id, or null if this update isn't one. */
+function extractVoiceNote(body: unknown): { chatId: string; fileId: string } | null {
+  const m = (body as {
+    message?: { chat?: { id?: number | string }; voice?: { file_id?: string }; audio?: { file_id?: string } };
+  })?.message;
+  const fileId = m?.voice?.file_id ?? m?.audio?.file_id;
+  const chatId = m?.chat?.id;
+  if (!fileId || chatId == null) return null;
+  return { chatId: String(chatId), fileId };
+}
 
 // PUBLIC route (Telegram has no cookie). Self-authenticates: optional webhook secret header +
 // verifySender(chat id). Always returns 200 so Telegram does not retry on our errors.
@@ -21,7 +34,28 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => null);
-  const incoming = provider.handleWebhook(body);
+
+  // ── voice note branch (runs BEFORE the text branch) ──
+  // A voice note has no `text`, so handleWebhook() would drop it. Detect message.voice/message.audio,
+  // gate it on the SAME allowed-chat-id as text (so we never download audio for a stranger), transcribe
+  // LOCALLY, then feed the transcript through the EXACT same pipeline a text message uses (no forked logic).
+  const voice = extractVoiceNote(body);
+  let incoming: IncomingMessage | null;
+  if (voice) {
+    if (!provider.verifySender(voice.chatId)) {
+      recordAudit({ actor: voice.chatId, via: "telegram", action: "phone.unauthorized", detail: "voice note" });
+      return NextResponse.json({ ok: true }); // unknown sender → ignored exactly like a text message
+    }
+    const t = await transcribeVoice(voice.fileId);
+    if ("error" in t) {
+      const msg = t.error === "voice_disabled" ? "🎤 voice notes staan uit" : "🎤 kon de spraaknotitie niet verwerken";
+      await provider.sendMessage(msg, { chatId: voice.chatId }).catch(() => {});
+      return NextResponse.json({ ok: true }); // best-effort: a failed transcription never 500s the webhook
+    }
+    incoming = { chatId: voice.chatId, text: t.text, isCallback: false };
+  } else {
+    incoming = provider.handleWebhook(body);
+  }
   if (!incoming) return NextResponse.json({ ok: true });
 
   if (!provider.verifySender(incoming.chatId)) {

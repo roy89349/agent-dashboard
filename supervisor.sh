@@ -98,14 +98,18 @@ audit(){ local iss="${1:-0}" data="${2:-}"; [ -n "$data" ] || data='{}'
   printf '{"ts":"%s","issue":%s,"state":"control","data":%s}\n' "$(ts)" "$iss" "$data" \
     >>"$FLEET_DIR/logs/events.jsonl" 2>/dev/null || true; }
 
-# adopt_orphans: bring live workers from a previous supervisor back into the slot arrays
+# adopt_orphans: bring live workers from a previous supervisor back into the slot arrays.
+# Multi-repo: the heartbeat's optional "repo" field rebuilds the claim string "<id>#<n>" so
+# slot bookkeeping and the wip-recovery skip list match what claim_next/worker.sh use.
 adopt_orphans(){
-  local i hb pid issue started
+  local i hb pid issue started rid
   for i in $(seq 0 $((HARD_MAX_WORKERS-1))); do
     hb="$STATE_DIR/worker-$i.json"; [ -f "$hb" ] || continue
     pid="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("pid") or "")' "$hb" 2>/dev/null)"
     issue="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("issue") or "")' "$hb" 2>/dev/null)"
     started="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("started_at") or "")' "$hb" 2>/dev/null)"
+    rid="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("repo") or "")' "$hb" 2>/dev/null)"
+    [ -n "$rid" ] && issue="$rid#$issue"
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
       SLOT_PID[$i]="$pid"; SLOT_ISSUE[$i]="$issue"; SLOT_START[$i]="$(iso_to_epoch "$started")"
       [ -n "${SLOT_START[$i]}" ] || SLOT_START[$i]="$(date +%s)"
@@ -241,6 +245,8 @@ for r in rows:
     p=r.split('\t')
     if len(p)<4: continue
     slot,pid,issue,start=p[0],p[1],p[2],p[3]
+    rid=None                       # multi-repo: slot issue may be a claim string "<id>#<n>"
+    if '#' in issue: rid,issue=issue.split('#',1)
     d={}
     try: d=json.load(open('%s/worker-%s.json'%(sd,slot)))
     except Exception: pass
@@ -254,11 +260,16 @@ for r in rows:
     stale=False
     if be is not None and (now-be)>2*hb: stale=True
     if page is not None and budget and page>budget: stale=True
-    slots.append({"slot":I(slot),"pid":I(pid),"issue":I(issue),
+    entry={"slot":I(slot),"pid":I(pid),"issue":I(issue),
         "title":d.get('title'),"model":d.get('model'),"effort":d.get('effort'),"depth":d.get('depth'),"phase":phase,
         "started_at":d.get('started_at'),"elapsed_s":elapsed,"phase_age_s":page,
         "stale":stale,"log":"/api/fleet/log?issue=%s"%issue,
-        "role":d.get('role'),"agent_id":d.get('agent_id'),"agent_name":d.get('agent_name')})
+        "role":d.get('role'),"agent_id":d.get('agent_id'),"agent_name":d.get('agent_name')}
+    repo=d.get('repo') or rid      # heartbeat first, slot claim string as fallback
+    if repo:                       # keys only present for secondary repos (primary bytes unchanged)
+        entry["repo"]=repo
+        entry["log"]="/api/fleet/log?issue=%s&repo=%s"%(issue,repo)
+    slots.append(entry)
 fb=int(env('ST_FB','0') or 0); cf=int(env('ST_CF','0') or 0)
 out={"schema":1,"supervisor_pid":I(env('ST_SUPPID')),"heartbeat":env('ST_HBNOW'),
   "mode":env('ST_MODE'),"claiming":env('ST_CLAIMING')=='1',
@@ -286,6 +297,23 @@ for n in $(gh issue list --repo "$REPO" --label agent-wip --state open --json nu
     emit "$n" recovered '{}'
   fi
 done
+# multi-repo recovery: the same stuck-wip sweep per enabled secondary repo (repos.json).
+# Namespaced branches "agent/<id>/issue-<n>-…"; adopted claim strings "<id>#<n>" are skipped.
+# No repos.json = repos_list is empty = this loop never runs (byte-identical single-repo start).
+while IFS=$'\t' read -r rid rrepo rdir rgreen rname; do
+  [ -n "$rid" ] || continue
+  git -C "$rdir" worktree prune 2>/dev/null || true
+  sec_heads="$(gh pr list --repo "$rrepo" --state open --json headRefName -q '.[].headRefName' 2>/dev/null)"
+  for n in $(gh issue list --repo "$rrepo" --label agent-wip --state open --json number -q '.[].number' 2>/dev/null); do
+    case "$n" in ''|*[!0-9]*) continue;; esac
+    case " $ADOPTED " in *" $rid#$n "*) continue;; esac
+    if ! printf '%s\n' "$sec_heads" | grep -q "^agent/$rid/issue-$n-"; then
+      log "↩︎ recovery: $rid#$n was stuck on agent-wip → agent-ready"
+      gh issue edit "$n" --repo "$rrepo" --add-label agent-ready --remove-label agent-wip >/dev/null 2>&1 || true
+      ( FLEET_REPO_ID="$rid"; emit "$n" recovered '{}' )
+    fi
+  done
+done < <(repos_list 2>/dev/null)
 
 # ── main loop ──
 while true; do
@@ -337,7 +365,10 @@ while true; do
       SLOT="$(free_slot "$MW")"; [ -z "$SLOT" ] && break
       NUM="$(claim_next)"; [ -z "$NUM" ] && break
       SLOT_ISSUE[$SLOT]="$NUM"; SLOT_START[$SLOT]="$(date +%s)"
-      FLEET_SLOT="$SLOT" "$FLEET_DIR/worker.sh" "$NUM" >"$FLEET_DIR/logs/issue-$NUM.run.log" 2>&1 &
+      # NUM is a claim string: bare "<n>" (primary, unchanged) or "<id>#<n>" (secondary).
+      # Log filename mirrors the worker's namespace: "tapsafe#3" -> issue-tapsafe--3.run.log.
+      SAFE_NUM="${NUM/\#/--}"
+      FLEET_SLOT="$SLOT" "$FLEET_DIR/worker.sh" "$NUM" >"$FLEET_DIR/logs/issue-$SAFE_NUM.run.log" 2>&1 &
       SLOT_PID[$SLOT]="$!"
       log "▶ worker #$NUM in slot $SLOT (busy: $(live_slots)/$MW)"
     done

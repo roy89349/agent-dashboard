@@ -67,6 +67,7 @@ export async function getBoard(): Promise<BoardCard[]> {
         teamName: team?.name ?? null,
         riskLevel: pend ? riskLevel(pend) : null,
         awaitingApproval: !!pend,
+        repo: slot?.repo ?? null, // multi-repo id from the live heartbeat (absent/"primary" = env repo)
         hasScreenshot: pr ? screenshotExists(pr.number) : false,
       };
     });

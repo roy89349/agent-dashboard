@@ -4,15 +4,37 @@
 set -uo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-NUM="${1:?usage: worker.sh <issue-number>}"
+CLAIM="${1:?usage: worker.sh <issue-number | repo-id#issue-number>}"
+NUM="$(claim_issue_of "$CLAIM")"
+# ── multi-repo: a claim "<id>#<n>" targets a SECONDARY repo from $REPOS_FILE. Resolve
+# REPO/REPO_DIR/GREEN_CMD/PROJECT_NAME/PROJECT_DESC for THIS task; a bare-number claim
+# (the primary repo) keeps every env value and every file/branch name exactly as before. ──
+FLEET_REPO_ID="$(claim_repo_of "$CLAIM")"
+export FLEET_REPO_ID              # makes emit/push_telemetry namespace state + tag events
+NS=""                             # filename namespace prefix ("<id>--") for secondary repos
+if [ -n "$FLEET_REPO_ID" ]; then
+  R_REPO="$(repo_field "$FLEET_REPO_ID" repo)"
+  R_DIR="$(repo_field "$FLEET_REPO_ID" dir)"
+  if [ -z "$R_REPO" ] || [ -z "$R_DIR" ] || [ ! -d "$R_DIR" ]; then
+    log "❌ $CLAIM: repo id '$FLEET_REPO_ID' unknown in $REPOS_FILE or dir missing"
+    emit "$NUM" failed "$(json_obj error "unknown repo id $FLEET_REPO_ID (repos.json)")"
+    exit 1
+  fi
+  REPO="$R_REPO"; REPO_DIR="$R_DIR"
+  R_GREEN="$(repo_field "$FLEET_REPO_ID" green_cmd)"; [ -n "$R_GREEN" ] && GREEN_CMD="$R_GREEN"
+  R_NAME="$(repo_field "$FLEET_REPO_ID" name)";       [ -n "$R_NAME" ] && PROJECT_NAME="$R_NAME"
+  PROJECT_DESC="$(repo_field "$FLEET_REPO_ID" desc)"
+  export REPO REPO_DIR GREEN_CMD PROJECT_NAME PROJECT_DESC
+  NS="$FLEET_REPO_ID--"
+fi
 TITLE="$(gh issue view "$NUM" --repo "$REPO" --json title -q .title)"
 BODY="$(gh issue view "$NUM" --repo "$REPO" --json body -q .body)"
 LABELS="$(gh issue view "$NUM" --repo "$REPO" --json labels -q '[.labels[].name]|join(",")' 2>/dev/null || true)"
 SLUG="$(printf '%s' "$TITLE" | tr 'A-Z' 'a-z' | tr -cs 'a-z0-9' '-' | sed 's/^-*//;s/-*$//' | cut -c1-40)"
-BRANCH="agent/issue-$NUM-$SLUG"
-WT="$FLEET_DIR/worktrees/issue-$NUM"
-AGENT_LOG="$FLEET_DIR/logs/issue-$NUM.agent.log"
-GATE_LOG="$FLEET_DIR/logs/issue-$NUM.gate.log"
+BRANCH="agent/${FLEET_REPO_ID:+$FLEET_REPO_ID/}issue-$NUM-$SLUG"
+WT="$FLEET_DIR/worktrees/${NS}issue-$NUM"
+AGENT_LOG="$FLEET_DIR/logs/issue-$NS$NUM.agent.log"
+GATE_LOG="$FLEET_DIR/logs/issue-$NS$NUM.gate.log"
 
 # ── live heartbeat per slot (feeds the "who-does-what" lanes in the dashboard) ──
 WORKER_START="$(ts)"
@@ -24,15 +46,17 @@ BEATER_PID=""
 # compose_beat: assemble the heartbeat (fresh beat_ts) and write it atomically. Only writer = the beater.
 compose_beat(){
   local ph; ph="$(cat "$PHASEF" 2>/dev/null)"
-  python3 - "$FLEET_SLOT" "$NUM" "$$" "${MODEL_SEL:-}" "$ph" "$TITLE" "$WORKER_START" "$(ts)" "${EFFORT_SEL:-}" "${DEPTH_SEL:-}" "${ROLE_SEL:-}" "${AGENT_ID_SEL:-}" "${AGENT_NAME_SEL:-}" <<'PY' | atomic_write "$HB"
+  python3 - "$FLEET_SLOT" "$NUM" "$$" "${MODEL_SEL:-}" "$ph" "$TITLE" "$WORKER_START" "$(ts)" "${EFFORT_SEL:-}" "${DEPTH_SEL:-}" "${ROLE_SEL:-}" "${AGENT_ID_SEL:-}" "${AGENT_NAME_SEL:-}" "${FLEET_REPO_ID:-}" <<'PY' | atomic_write "$HB"
 import json,sys
-slot,issue,pid,model,phase,title,started,beat,effort,depth,role,agent_id,agent_name=sys.argv[1:14]
+slot,issue,pid,model,phase,title,started,beat,effort,depth,role,agent_id,agent_name,repo=sys.argv[1:15]
 def i(x):
     try: return int(x)
     except Exception: return None
-print(json.dumps({"slot":i(slot),"issue":i(issue),"pid":i(pid),"model":model or None,
+d={"slot":i(slot),"issue":i(issue),"pid":i(pid),"model":model or None,
   "phase":phase or None,"title":title,"started_at":started,"beat_ts":beat,"effort":effort or None,"depth":depth or None,
-  "role":role or None,"agent_id":agent_id or None,"agent_name":agent_name or None},ensure_ascii=False))
+  "role":role or None,"agent_id":agent_id or None,"agent_name":agent_name or None}
+if repo: d["repo"]=repo            # multi-repo only — primary heartbeat stays byte-identical
+print(json.dumps(d,ensure_ascii=False))
 PY
 }
 # set_phase: foreground worker owns the phase file; ping the beater so the heartbeat updates immediately.
@@ -60,11 +84,11 @@ fail(){
 # This way there is exactly one label writer per outcome (no race with the supervisor).
 on_signal(){
   [ -n "$BEATER_PID" ] && kill "$BEATER_PID" 2>/dev/null
-  if [ -f "$CONTROL_DIR/cancel/$NUM" ]; then
+  if [ -f "$CONTROL_DIR/cancel/$CLAIM" ]; then   # marker key = claim string (primary: == $NUM)
     log "🚫 #$NUM cancelled via control-plane"
     gh issue edit "$NUM" --repo "$REPO" --add-label agent-cancelled --remove-label agent-wip >/dev/null 2>&1 || true
     emit "$NUM" cancelled '{}'
-    rm -f "$CONTROL_DIR/cancel/$NUM" 2>/dev/null || true
+    rm -f "$CONTROL_DIR/cancel/$CLAIM" 2>/dev/null || true
   else
     log "⚠️ #$NUM interrupted — back to agent-ready"
     gh issue edit "$NUM" --repo "$REPO" --add-label agent-ready --remove-label agent-wip >/dev/null 2>&1 || true
@@ -163,7 +187,7 @@ build_on_host(){
     eval "$GREEN_CMD" || exit 23 )
 }
 
-PROMPT_FILE="$FLEET_DIR/logs/issue-$NUM.prompt.txt"
+PROMPT_FILE="$FLEET_DIR/logs/issue-$NS$NUM.prompt.txt"
 printf '%s' "$PROMPT" > "$PROMPT_FILE"
 # ── BUILD STEP — sandbox (default) or host-fallback (FLEET_SANDBOX=off). Install + agent + green-gate
 # run together; git push + PR stay OUTSIDE this orchestrator (credential broker). See deploy/sandbox/. ──
@@ -268,10 +292,15 @@ if [ -n "$FIRST_PNG" ]; then
     PR_NUM="${PR_URL##*/}"
     VIS_DIFFSTAT="$(git -C "$WT" diff --stat origin/main...HEAD 2>/dev/null | tail -20)"
     VIS_FILES="$(git -C "$WT" diff --name-only origin/main...HEAD 2>/dev/null)"
+    # multi-repo: tag the POST with the repo id (dashboard tolerates unknown fields).
+    # Guarded array expansion — bash 3.2 + set -u errors on a plain empty "${arr[@]}".
+    VIS_REPO_F=()
+    [ -n "$FLEET_REPO_ID" ] && VIS_REPO_F=(-F "repo=$FLEET_REPO_ID")
     if curl -m 30 -sf -o /dev/null -X POST \
          -H "X-Watchdog-Token: $VIS_TOKEN" \
          -F "screenshot=@$FIRST_PNG;type=image/png" \
          -F "pr=$PR_NUM" -F "issue=$NUM" -F "title=$TITLE" \
+         ${VIS_REPO_F[@]+"${VIS_REPO_F[@]}"} \
          -F "diffstat=$VIS_DIFFSTAT" -F "files=$VIS_FILES" \
          "$MC_URL/api/fleet/pr-visual" 2>/dev/null; then
       log "📸 pr-visual sent to dashboard ($(basename "$FIRST_PNG"))"

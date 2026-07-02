@@ -27,6 +27,7 @@ import {
   Wand2,
   ScrollText,
   Coins,
+  FolderGit2,
   type LucideIcon,
 } from "lucide-react";
 import { CommandPalette } from "./command-palette";
@@ -52,6 +53,7 @@ const NAV_GROUPS: { section: string; items: { href: string; label: string; icon:
     items: [
       { href: "/manager", label: "Manager", icon: Split },
       { href: "/agents", label: "Agents", icon: Users },
+      { href: "/repos", label: "Repositories", icon: FolderGit2 },
       { href: "/build-team", label: "Build Team", icon: Wand2 },
       { href: "/team-composer", label: "Team Composer", icon: Network },
       { href: "/skills", label: "Skills", icon: Boxes },
@@ -94,6 +96,7 @@ const TITLES: Record<string, string> = {
   "/updates": "Updates — Communication Agent",
   "/workers": "Worker Lanes",
   "/agents": "Agents",
+  "/repos": "Repositories",
   "/build-team": "Build my team",
   "/team-composer": "Team Composer",
   "/skills": "Skill Library",

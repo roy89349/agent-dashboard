@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { telegramProvider } from "./phone/telegram.ts";
 import { routeCommand } from "./phone/commands.ts";
+import { transcribeVoice, type TranscribeDeps } from "./phone/transcribe.ts";
 import { phoneStatus, getProvider } from "./phone/index.ts";
 import { redact } from "./redact.ts";
 import type { IncomingMessage } from "./phone/types.ts";
@@ -210,4 +211,77 @@ test("getProvider returns telegram; redact catches a github pat", () => {
   setEnv(true);
   assert.equal(getProvider()?.name, "telegram");
   assert.ok(!redact("token github_pat_abcdefghij1234567890ZZ here").includes("github_pat_"));
+});
+
+// ── voice notes → tasks (local whisper.cpp) ──
+// Real audio + a real whisper binary aren't available in CI, so we test the PURE / guardable parts with
+// injected deps (fetch + process runner + logger + env). No network, no spawn, no binary needed.
+
+test("transcribeVoice: VOICE_NOTES off ⇒ voice_disabled, and it NEVER spawns", async () => {
+  let ran = false;
+  const deps: Partial<TranscribeDeps> = {
+    env: { TELEGRAM_BOT_TOKEN: "t", WHISPER_BIN: "/x/whisper", WHISPER_MODEL: "/x/m.bin" }, // flag deliberately absent
+    run: async () => { ran = true; throw new Error("must not run"); },
+    fetch: (async () => { throw new Error("must not fetch"); }) as unknown as typeof fetch,
+    log: () => {},
+  };
+  const r = await transcribeVoice("file-123", deps);
+  assert.deepEqual(r, { error: "voice_disabled" });
+  assert.equal(ran, false, "the gate must short-circuit before any spawn");
+});
+
+test("transcribeVoice: missing binary/model ⇒ voice_disabled (still no spawn)", async () => {
+  let ran = false;
+  const r = await transcribeVoice("file-123", {
+    env: { VOICE_NOTES: "on", TELEGRAM_BOT_TOKEN: "t" }, // WHISPER_BIN/MODEL missing
+    run: async () => { ran = true; throw new Error("must not run"); },
+    fetch: (async () => { throw new Error("must not fetch"); }) as unknown as typeof fetch,
+    log: () => {},
+  });
+  assert.deepEqual(r, { error: "voice_disabled" });
+  assert.equal(ran, false);
+});
+
+test("transcribeVoice: full stubbed pipeline returns the transcript AND redacts it before logging", async () => {
+  const SECRET = "github_pat_abcdefghij1234567890ZZ";
+  const TRANSCRIPT = `please add a settings page token ${SECRET} here`;
+  const logs: string[] = [];
+
+  // fetch stub: getFile → a file_path; download → fake OGG bytes. No real network.
+  const fetchStub = (async (url: string) => {
+    if (String(url).includes("/getFile"))
+      return { ok: true, json: async () => ({ ok: true, result: { file_path: "voice/f.ogg", file_size: 2048 } }) } as unknown as Response;
+    return { ok: true, arrayBuffer: async () => new TextEncoder().encode("fake-ogg-bytes").buffer } as unknown as Response;
+  }) as unknown as typeof fetch;
+
+  // run stub: ffmpeg "succeeds"; whisper writes "<-of>.txt" (exercises the real file-read path) + prints stdout.
+  const runStub: TranscribeDeps["run"] = async (bin, args) => {
+    if (bin.includes("ffmpeg")) return { code: 0, stdout: "", stderr: "", timedOut: false };
+    const of = args[args.indexOf("-of") + 1];
+    fs.writeFileSync(`${of}.txt`, TRANSCRIPT);
+    return { code: 0, stdout: TRANSCRIPT, stderr: "", timedOut: false };
+  };
+
+  const r = await transcribeVoice("file-abc", {
+    env: { VOICE_NOTES: "on", TELEGRAM_BOT_TOKEN: "t", WHISPER_BIN: "/x/whisper-cli", WHISPER_MODEL: "/x/ggml-base.bin", FFMPEG_BIN: "ffmpeg" },
+    fetch: fetchStub,
+    run: runStub,
+    log: (m) => logs.push(m),
+  });
+
+  assert.ok("text" in r, "expected a transcript");
+  assert.match((r as { text: string }).text, /please add a settings page/);
+  // the transcript is logged, but ONLY after redaction — the planted secret must never hit the log
+  assert.ok(logs.length > 0, "expected a log line");
+  assert.ok(logs.every((l) => !l.includes(SECRET)), "the secret must be redacted before logging");
+  assert.ok(logs.some((l) => l.includes("«REDACTED-github-pat»")), "expected the redaction marker");
+});
+
+test("voice wiring: a transcript routes to the SAME plan a typed message would (no forked logic)", () => {
+  setEnv(true);
+  const transcript = "please add a settings page";
+  const viaText = routeCommand(telegramProvider, msg(transcript));
+  const viaVoice = routeCommand(telegramProvider, { chatId: ALLOWED, text: transcript, isCallback: false });
+  assert.deepEqual(viaVoice, viaText);
+  assert.deepEqual(viaVoice, { kind: "free_text", text: transcript }); // → the "make this a task?" manager-confirm flow
 });

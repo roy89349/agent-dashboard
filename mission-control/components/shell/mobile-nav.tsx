@@ -8,7 +8,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import {
   LayoutDashboard, Inbox, Radio, Users, MoreHorizontal,
   MessagesSquare, BookOpen, Settings, Smartphone, ListTodo,
-  Play, Pause, Square, X, Network, Boxes, Layers, GitBranch, Split, Megaphone, BarChart3, Gauge, Trophy, Wand2, ScrollText, Coins,
+  Play, Pause, Square, X, Network, Boxes, Layers, GitBranch, Split, Megaphone, BarChart3, Gauge, Trophy, Wand2, ScrollText, Coins, FolderGit2,
 } from "lucide-react";
 import type { FleetStatus } from "@/lib/types";
 
@@ -37,6 +37,7 @@ const MORE_GROUPS: {
     items: [
       { href: "/manager", label: "Manager", icon: Split, hint: "split big tasks into subtasks" },
       { href: "/agents", label: "Agents", icon: Users, hint: "roster · memory · performance" },
+      { href: "/repos", label: "Repositories", icon: FolderGit2, hint: "multi-repo registry" },
       { href: "/build-team", label: "Build Team", icon: Wand2, hint: "team-from-project wizard" },
       { href: "/team-composer", label: "Team Composer", icon: Network, hint: "compose your AI team" },
       { href: "/skills", label: "Skill Library", icon: Boxes, hint: "agent capabilities" },
