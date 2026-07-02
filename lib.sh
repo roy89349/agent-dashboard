@@ -184,6 +184,14 @@ try: print(json.loads(sys.argv[1]).get(sys.argv[2],""))
 except Exception: print("")' "$1" "$2" 2>/dev/null
 }
 
+# mc_watchdog_token -> the dashboard's internal MC_WATCHDOG_TOKEN, grepped from $MC_ENV_FILE on
+# the HOST. Used by worker.sh to POST the visual-PR screenshot. This value must NEVER reach the
+# sandbox container (it is not passed into run-build.sh). Empty output = token unavailable.
+mc_watchdog_token(){
+  [ -n "${MC_ENV_FILE:-}" ] && [ -f "$MC_ENV_FILE" ] || return 0
+  sed -n 's/^MC_WATCHDOG_TOKEN=//p' "$MC_ENV_FILE" | head -n1 | tr -d "\"'" | tr -d '[:space:]'
+}
+
 # notify <message> (uses NOTIFY_CMD with $MSG in scope; empty = no-op)
 notify(){ [ -n "${NOTIFY_CMD:-}" ] || return 0; MSG="$1" bash -c "$NOTIFY_CMD" >/dev/null 2>&1 || true; }
 
@@ -213,11 +221,110 @@ cand.sort(key=lambda n: pos.get(n, 10**6))   # stable: ties keep GitHub order
 if cand: print(cand[0])' "$CONTROL_DIR/fleet.json"
 }
 
-# claim_next -> claims (ready->wip) and echoes the number, or nothing
+# ── night shift (all additive; every entry point is guarded by NIGHT_SHIFT=on, so with the
+#    flag off — or a bug in any helper — daytime claiming stays byte-identical to today) ──
+
+# in_night_window [hour] -> 0 (true) when <hour> (default: current local hour) falls inside the
+# night window. start>end wraps midnight: [NIGHT_START_HOUR,24)∪[0,NIGHT_END_HOUR); start<end is
+# a plain [start,end); start==end is an EMPTY window (never true). Hour arg exists for tests.
+in_night_window(){
+  local h="${1:-$(date +%H)}" s="${NIGHT_START_HOUR:-23}" e="${NIGHT_END_HOUR:-7}"
+  case "$h" in ''|*[!0-9]*) return 1;; esac
+  case "$s" in ''|*[!0-9]*) s=23;; esac
+  case "$e" in ''|*[!0-9]*) e=7;; esac
+  h=$((10#$h)); s=$((10#$s)); e=$((10#$e))
+  if [ "$s" -gt "$e" ]; then [ "$h" -ge "$s" ] || [ "$h" -lt "$e" ]
+  elif [ "$s" -lt "$e" ]; then [ "$h" -ge "$s" ] && [ "$h" -lt "$e" ]
+  else return 1
+  fi
+}
+
+# night_id [hour] -> YYYY-MM-DD of the day the CURRENT night started (a 23→7 night keeps one
+# counter across midnight: at 02:00 the night id is yesterday's date). Hour arg for tests.
+night_id(){
+  local h="${1:-$(date +%H)}" s="${NIGHT_START_HOUR:-23}" e="${NIGHT_END_HOUR:-7}"
+  case "$h" in ''|*[!0-9]*) h=0;; esac
+  case "$s" in ''|*[!0-9]*) s=23;; esac
+  case "$e" in ''|*[!0-9]*) e=7;; esac
+  h=$((10#$h)); s=$((10#$s)); e=$((10#$e))
+  if [ "$s" -gt "$e" ] && [ "$h" -lt "$e" ]; then
+    date -v-1d +%Y-%m-%d 2>/dev/null || date -d yesterday +%Y-%m-%d
+  else
+    date +%Y-%m-%d
+  fi
+}
+
+# night_count [hour] -> claims so far this night (counter file state/.night-<night_id>)
+night_count(){
+  local c; c="$(cat "$STATE_DIR/.night-$(night_id "${1:-}")" 2>/dev/null)"
+  case "$c" in ''|*[!0-9]*) c=0;; esac
+  echo "$c"
+}
+
+# night_cap_reached [hour] -> 0 (true) when this night's claims >= NIGHT_MAX_PR
+night_cap_reached(){
+  local cap="${NIGHT_MAX_PR:-5}"
+  case "$cap" in ''|*[!0-9]*) cap=5;; esac
+  [ "$(night_count "${1:-}")" -ge "$cap" ]
+}
+
+# night_mark_claim [hour] — increment this night's counter (atomic, 0600)
+night_mark_claim(){
+  printf '%s' "$(( $(night_count "${1:-}") + 1 ))" | atomic_write "$STATE_DIR/.night-$(night_id "${1:-}")"
+}
+
+# pick_next_night -> next usable LABEL_NIGHT issue (same filters/priority rules as pick_next)
+pick_next_night(){
+  gh issue list --repo "$REPO" --label "$LABEL_NIGHT" --state open --json number,labels --limit 50 \
+  | python3 -c 'import json,sys
+try: pr=json.load(open(sys.argv[1])).get("priority",[]) or []
+except Exception: pr=[]
+pos={}
+for i,n in enumerate(pr):
+    try: pos[int(n)]=i
+    except Exception: pass
+cand=[]
+try: items=json.load(sys.stdin)
+except Exception: items=[]
+for it in items:
+    labs={l["name"] for l in it.get("labels",[])}
+    if labs & {"agent-wip","agent-done","agent-failed","agent-cancelled"}: continue
+    cand.append(it["number"])
+cand.sort(key=lambda n: pos.get(n, 10**6))
+if cand: print(cand[0])' "$CONTROL_DIR/fleet.json"
+}
+
+# pick_next_any -> pick_next, plus (night shift on + in window + under cap) the night queue.
+# Day (LABEL_READY) issues keep ABSOLUTE priority; with NIGHT_SHIFT=off this IS pick_next.
+pick_next_any(){
+  local n; n="$(pick_next)"
+  if [ -n "$n" ]; then echo "$n"; return 0; fi
+  [ "${NIGHT_SHIFT:-off}" = "on" ] || return 0
+  in_night_window || return 0
+  night_cap_reached && return 0
+  pick_next_night
+}
+
+# claim_next -> claims (ready->wip) and echoes the number, or nothing.
+# Night shift: only when the day queue is EMPTY (day issues keep absolute priority) and
+# NIGHT_SHIFT=on + inside the window + under the per-night cap, also claim LABEL_NIGHT issues.
+# Night claims still pass through the supervisor's normal day-cap/budget/breaker gates.
 claim_next(){
-  local n; n="$(pick_next)"; [ -z "$n" ] && return 0
-  gh issue edit "$n" --repo "$REPO" --add-label agent-wip --remove-label "$LABEL_READY" >/dev/null 2>&1 || return 0
-  emit "$n" claimed '{}'; echo "$n"
+  local n; n="$(pick_next)"
+  if [ -n "$n" ]; then
+    gh issue edit "$n" --repo "$REPO" --add-label agent-wip --remove-label "$LABEL_READY" >/dev/null 2>&1 || return 0
+    emit "$n" claimed '{}'; echo "$n"; return 0
+  fi
+  # ── additive night path (any failure here = "no claim", never a broken day loop) ──
+  [ "${NIGHT_SHIFT:-off}" = "on" ] || return 0
+  in_night_window || return 0
+  night_cap_reached && return 0
+  n="$(pick_next_night)"; [ -z "$n" ] && return 0
+  gh issue edit "$n" --repo "$REPO" --add-label agent-wip --remove-label "$LABEL_NIGHT" >/dev/null 2>&1 || return 0
+  night_mark_claim
+  emit "$n" night-claim "$(json_obj night_id "$(night_id)" night_count "$(night_count)")"
+  emit "$n" claimed '{}'
+  echo "$n"
 }
 
 # route_model <num> <title> <body> -> sonnet|opus

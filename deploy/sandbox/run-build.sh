@@ -23,8 +23,14 @@ exec podman run --rm --userns=keep-id \
   -v "$WT":/work:rw \
   -v "$PROMPTF":/prompt.txt:ro \
   -v "$DIR/pipeline.sh":/pipeline.sh:ro \
+  -v "$DIR/screenshot.cjs":/screenshot.cjs:ro \
   -e CLAUDE_CODE_OAUTH_TOKEN="$TOKEN" \
   -e HOME=/home/agent \
   -e MODEL="$MODEL" -e EFFORT="$EFFORT" -e MAXT="$MAXT" -e GREEN_CMD="${GREEN_CMD:-npm run build}" \
+  -e FLEET_SCREENSHOT="${FLEET_SCREENSHOT:-off}" \
+  -e SCREENSHOT_PATHS="${SCREENSHOT_PATHS:-/}" \
+  -e SCREENSHOT_START_CMD="${SCREENSHOT_START_CMD:-npm run start}" \
+  -e SCREENSHOT_PORT="${SCREENSHOT_PORT:-3000}" \
+  -e SCREENSHOT_WAIT_SEC="${SCREENSHOT_WAIT_SEC:-25}" \
   --workdir /work \
   "$IMAGE" bash /pipeline.sh

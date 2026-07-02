@@ -187,6 +187,10 @@ esac
 
 # stage everything, then run the gates
 git -C "$WT" add -A
+# visual-PR screenshots (made pre-commit inside the sandbox) must NEVER enter the PR:
+# unstage .fleet-screens BEFORE the no-change check, the secret-gate and the commit.
+# The files stay on disk in the worktree — worker posts the first PNG after the PR opens.
+git -C "$WT" rm -r -q --cached --ignore-unmatch -- .fleet-screens 2>/dev/null || true
 git -C "$WT" diff --cached --quiet && fail "agent made no changes"
 
 # ── SECRET-GATE (before the expensive build): reject dangerous files + secret patterns ──
@@ -251,6 +255,38 @@ gh issue comment "$NUM" --repo "$REPO" --body "🤖 PR opened: $PR_URL" >/dev/nu
 # From here the task is DONE (PR open, label agent-done). Disarm the interrupt trap so that
 # a kill/cancel/stop during the reviewer phase does not relabel the issue back to ready/cancelled.
 trap - INT TERM
+
+# ── VISUAL PR APPROVAL (host side) — post the first sandbox screenshot + a diff summary to the
+# dashboard, right after the PR opened. Strictly best-effort: every failure only logs/emits and
+# NEVER affects the task (the PR is already open). The token is read from $MC_ENV_FILE on the
+# HOST via mc_watchdog_token (lib.sh) — it never enters the sandbox container. The review verdict
+# is not known yet at this point, so it is omitted (the dashboard side treats it as optional).
+FIRST_PNG="$(ls "$WT/.fleet-screens/"*.png 2>/dev/null | head -n1)"
+if [ -n "$FIRST_PNG" ]; then
+  VIS_TOKEN="$(mc_watchdog_token)"
+  if [ -n "$VIS_TOKEN" ]; then
+    PR_NUM="${PR_URL##*/}"
+    VIS_DIFFSTAT="$(git -C "$WT" diff --stat origin/main...HEAD 2>/dev/null | tail -20)"
+    VIS_FILES="$(git -C "$WT" diff --name-only origin/main...HEAD 2>/dev/null)"
+    if curl -m 30 -sf -o /dev/null -X POST \
+         -H "X-Watchdog-Token: $VIS_TOKEN" \
+         -F "screenshot=@$FIRST_PNG;type=image/png" \
+         -F "pr=$PR_NUM" -F "issue=$NUM" -F "title=$TITLE" \
+         -F "diffstat=$VIS_DIFFSTAT" -F "files=$VIS_FILES" \
+         "$MC_URL/api/fleet/pr-visual" 2>/dev/null; then
+      log "📸 pr-visual sent to dashboard ($(basename "$FIRST_PNG"))"
+      emit "$NUM" pr-visual "$(json_obj status sent pr_url "$PR_URL")"
+    else
+      log "📸 pr-visual POST failed (non-blocking)"
+      emit "$NUM" pr-visual "$(json_obj status failed pr_url "$PR_URL")"
+    fi
+  else
+    log "📸 pr-visual skipped: no MC_WATCHDOG_TOKEN in ${MC_ENV_FILE:-<unset>}"
+    emit "$NUM" pr-visual "$(json_obj status skipped reason no-token)"
+  fi
+elif [ "${FLEET_SCREENSHOT:-off}" = on ]; then
+  emit "$NUM" pr-visual "$(json_obj status skipped reason no-screenshot)"
+fi
 
 # ── REVIEWER-AGENT (config-driven QA agent; live on/off via control-plane REVIEW) ──
 # The reviewer is now driven by the 'qa' agent in agents.json (model/name/prompt), but stays gated by

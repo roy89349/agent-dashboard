@@ -151,6 +151,8 @@ export interface BoardCard {
   teamName?: string | null;
   riskLevel?: RiskLevel | null;
   awaitingApproval?: boolean;
+  /** A visual-PR screenshot exists on disk for this PR (served by GET /api/fleet/pr-visual?pr=N). */
+  hasScreenshot?: boolean;
 }
 
 /** Map labels + live state to a column. The GitHub label is authoritative. */

@@ -4,6 +4,7 @@ import { getFleetTasks } from "./supabase";
 import { readStatus } from "./fleet";
 import { listPendingApprovals } from "./approvals";
 import { riskLevel } from "./approvals-view";
+import { screenshotExists } from "./pr-visual";
 import { teamForRole } from "./team";
 import { deriveColumn, type BoardCard } from "./types";
 
@@ -66,6 +67,7 @@ export async function getBoard(): Promise<BoardCard[]> {
         teamName: team?.name ?? null,
         riskLevel: pend ? riskLevel(pend) : null,
         awaitingApproval: !!pend,
+        hasScreenshot: pr ? screenshotExists(pr.number) : false,
       };
     });
 }

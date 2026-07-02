@@ -1,7 +1,26 @@
 FROM docker.io/library/node:22-bookworm-slim
+
+# Playwright's browser store lives at a FIXED, world-readable path so the runtime user
+# (userns=keep-id → arbitrary non-root uid, HOME=/home/agent tmpfs) finds the Chromium that
+# was installed at image-build time as root. Read-only at runtime is fine: browsers are only read.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      git ca-certificates ripgrep \
+      git ca-certificates ripgrep curl \
     && rm -rf /var/lib/apt/lists/*
-RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g @anthropic-ai/claude-code playwright-core
+
+# ── visual PR approval: Chromium via playwright-core (NOT the Debian chromium package) ──
+# Why this approach: playwright-core only guarantees protocol compatibility with the exact
+# browser build it ships, so `npx playwright-core install chromium` is reproducible (pinned by
+# the playwright-core version resolved above) and needs no executablePath plumbing; the Debian
+# chromium package drifts independently and breaks the CDP contract. --with-deps apt-installs
+# the required OS libraries in the same step. Sellability: no external services, no API keys —
+# everything ships in this image. If this step ever fails, screenshots degrade gracefully at
+# runtime (pipeline.sh checks for the browser dir and skips) — a build NEVER fails over this.
+RUN npx playwright-core install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/* \
+    && chmod -R a+rX /ms-playwright
+
 # non-root build user inside the container (defense in depth)
 WORKDIR /work

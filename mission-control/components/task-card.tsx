@@ -210,6 +210,16 @@ export function TaskCard({ card, onMerged }: { card: BoardCard; onMerged: () => 
               </a>
             )}
           </div>
+          {card.hasScreenshot && (
+            <a
+              href={`/api/fleet/pr-visual?pr=${card.prNumber}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-white/55 hover:text-white"
+            >
+              📸 screenshot
+            </a>
+          )}
         </div>
       )}
     </article>

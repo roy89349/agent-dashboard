@@ -57,6 +57,12 @@ export interface PhoneProvider {
   parseIncomingCommand(text: string): ParsedCommand;
 
   sendMessage(text: string, opts?: { buttons?: Button[][]; chatId?: string }): Promise<PhoneResult>;
+  /** OPTIONAL: send a photo (PNG bytes) with an HTML caption (caller pre-escapes) + inline buttons.
+   *  Providers without photo support simply omit this. Never throws (same contract as sendMessage). */
+  sendPhoto?(
+    photo: Buffer | Blob,
+    opts?: { caption?: string; buttons?: Button[][]; chatId?: string; filename?: string },
+  ): Promise<PhoneResult>;
   sendApprovalRequest(a: Approval, opts?: { chatId?: string }): Promise<PhoneResult>;
   sendStatusUpdate(text: string, opts?: { chatId?: string }): Promise<PhoneResult>;
   answerCallback(callbackQueryId: string, text?: string): Promise<void>;

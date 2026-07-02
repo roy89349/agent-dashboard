@@ -9,7 +9,7 @@ const PUBLIC = ["/login", "/api/login", "/api/integrations/telegram/webhook", "/
 // Token-authenticated endpoints: these routes validate their own secret header FAIL-CLOSED
 // (401 without a valid MC_WATCHDOG_TOKEN / AGENT_GATEWAY_TOKEN), so the proxy must not bounce
 // their cookie-less callers (the systemd watchdog timer, the on-host agent runner) to /login.
-const SELF_AUTHED = ["/api/fleet/watchdog", "/api/agent/act"];
+const SELF_AUTHED = ["/api/fleet/watchdog", "/api/agent/act", "/api/fleet/pr-visual", "/api/communication/digest"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

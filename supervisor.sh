@@ -346,7 +346,7 @@ while true; do
   status_write "$MODE" "$CAN_CLAIM" "$PAUSE_REASON"
 
   if [ "$(live_slots)" -eq 0 ]; then
-    if [ "$ONCE" -eq 1 ] && { [ "$CAN_CLAIM" -eq 0 ] || [ -z "$(pick_next)" ]; }; then
+    if [ "$ONCE" -eq 1 ] && { [ "$CAN_CLAIM" -eq 0 ] || [ -z "$(pick_next_any)" ]; }; then
       log "🏁 supervisor stopping."; break
     fi
     sleep "${INTERVAL:-60}"

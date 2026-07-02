@@ -103,6 +103,30 @@ export const telegramProvider: PhoneProvider = {
     });
   },
 
+  // Multipart upload (photo bytes can't ride the JSON transport). Node 20+ global FormData/Blob.
+  // Caption is HTML parse_mode and must be pre-escaped by the caller (esc()). Never throws.
+  async sendPhoto(photo, opts) {
+    if (!TOKEN()) return { ok: false, error: "TELEGRAM_BOT_TOKEN not set" };
+    try {
+      const fd = new FormData();
+      fd.set("chat_id", opts?.chatId ?? ALLOWED());
+      const blob = photo instanceof Blob ? photo : new Blob([new Uint8Array(photo)], { type: "image/png" });
+      fd.set("photo", blob, opts?.filename ?? "screenshot.png");
+      if (opts?.caption) {
+        fd.set("caption", opts.caption.slice(0, 1024)); // Telegram caption hard limit
+        fd.set("parse_mode", "HTML");
+      }
+      const kb = toInlineKeyboard(opts?.buttons);
+      if (kb) fd.set("reply_markup", JSON.stringify(kb));
+      const res = await fetch(`${API()}/sendPhoto`, { method: "POST", body: fd, cache: "no-store" });
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: { message_id?: number }; description?: string };
+      if (!res.ok || !j.ok) return { ok: false, error: j.description ?? `telegram ${res.status}` };
+      return { ok: true, messageId: j.result?.message_id != null ? String(j.result.message_id) : undefined };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "telegram sendPhoto failed" };
+    }
+  },
+
   async sendStatusUpdate(text, opts) {
     return this.sendMessage(text, { chatId: opts?.chatId });
   },
