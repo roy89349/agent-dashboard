@@ -29,3 +29,4 @@ mission-control/*.tsbuildinfo
 # ── OS ──
 .DS_Store
 Thumbs.db
+.next/
