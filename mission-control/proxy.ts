@@ -5,7 +5,7 @@ import { verifySession } from "@/lib/session";
 // Everything except /login + /api/login requires a valid mc_session cookie.
 // The phone webhook is public (no browser cookie) — it authenticates itself via the provider's
 // allowed chat/user id + an optional webhook secret (see app/api/integrations/*/webhook).
-const PUBLIC = ["/login", "/api/login", "/api/integrations/telegram/webhook", "/api/integrations/whatsapp/webhook"];
+const PUBLIC = ["/login", "/api/login", "/api/integrations/telegram/webhook", "/api/integrations/whatsapp/webhook", "/landing"];
 // Token-authenticated endpoints: these routes validate their own secret header FAIL-CLOSED
 // (401 without a valid MC_WATCHDOG_TOKEN / AGENT_GATEWAY_TOKEN), so the proxy must not bounce
 // their cookie-less callers (the systemd watchdog timer, the on-host agent runner) to /login.
